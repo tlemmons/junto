@@ -125,12 +125,6 @@ JUNTO_API_KEY="${JUNTO_API_KEY}"
 # Shared memory server URL
 JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL}"
 
-# Agent identity
-JUNTO_AGENT="${JUNTO_AGENT}"
-
-# Default project
-JUNTO_PROJECT="${JUNTO_PROJECT}"
-
 # Role description
 JUNTO_ROLE="${JUNTO_ROLE}"
 
