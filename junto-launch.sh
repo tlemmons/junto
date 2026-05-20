@@ -8,10 +8,10 @@
 #   --no-plugin   Disable junto-inbox channel push (push is on by default).
 #
 # Environment overrides (also settable in ~/.junto/config):
-#   JUNTO_AGENT       Agent name          (default: workClaude)
+#   JUNTO_AGENT       Agent name          (default: junto-user)
 #   JUNTO_PROJECT     Project name        (default: junto)
 #   JUNTO_ROLE        One-line role       (default: General work agent)
-#   JUNTO_MEMORY_URL  MCP server URL      (default: http://spg-junto-central:8080/mcp)
+#   JUNTO_MEMORY_URL  MCP server URL      (default: http://your-junto-server:8080/mcp)
 #   JUNTO_API_KEY     MCP API key         (required)
 #   JUNTO_OVERLAY     Path to overlay .md (optional)
 #
@@ -75,10 +75,10 @@ if [[ -f "$CLAUDE_MD" ]]; then
 fi
 
 # Apply defaults
-JUNTO_AGENT="${JUNTO_AGENT:-workClaude}"
+JUNTO_AGENT="${JUNTO_AGENT:-junto-user}"
 JUNTO_PROJECT="${JUNTO_PROJECT:-junto}"
 JUNTO_ROLE="${JUNTO_ROLE:-General work agent}"
-JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL:-http://spg-junto-central:8080/mcp}"
+JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL:-http://your-junto-server:8080/mcp}"
 
 # Export so the junto-inbox plugin subprocess inherits the correct identity.
 # Without this, the plugin defaults to whatever JUNTO_AGENT was in the parent
