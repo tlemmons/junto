@@ -259,6 +259,11 @@ if entry not in plugins:
     plugins.append(entry)
 data["channelsEnabled"] = True
 
+# Model: Opus in plan mode (/plan), Sonnet otherwise.
+# Sonnet 1M context window is set at launch time via ANTHROPIC_DEFAULT_SONNET_MODEL in junto-launch.sh.
+if "model" not in data:
+    data["model"] = "opusplan"
+
 # Redirect Claude Code's org-policy cache to our stable file
 data.setdefault("env", {})["CLAUDE_CODE_REMOTE_SETTINGS_PATH"] = managed_path
 
