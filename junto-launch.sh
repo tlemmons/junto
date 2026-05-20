@@ -48,16 +48,29 @@ done
 
 # Auto-detect agent/project from CLAUDE.md in cwd (env vars win if already set)
 CLAUDE_MD="$(pwd)/CLAUDE.md"
+AGENT_DETECTED=false
+PROJECT_DETECTED=false
+
 if [[ -f "$CLAUDE_MD" ]]; then
-    if [[ -z "${JUNTO_AGENT:-}" ]]; then
+    if [[ -n "${JUNTO_AGENT:-}" ]]; then
+        AGENT_DETECTED=true
+    else
         detected=$(grep -m1 'Your name is:.*`' "$CLAUDE_MD" 2>/dev/null \
             | sed 's/.*`\([^`]*\)`.*/\1/' || true)
-        [[ -n "$detected" ]] && JUNTO_AGENT="$detected"
+        if [[ -n "$detected" ]]; then
+            JUNTO_AGENT="$detected"
+            AGENT_DETECTED=true
+        fi
     fi
-    if [[ -z "${JUNTO_PROJECT:-}" ]]; then
+    if [[ -n "${JUNTO_PROJECT:-}" ]]; then
+        PROJECT_DETECTED=true
+    else
         detected=$(grep -m1 'project="[^"]*"' "$CLAUDE_MD" 2>/dev/null \
             | sed 's/.*project="\([^"]*\)".*/\1/' || true)
-        [[ -n "$detected" ]] && JUNTO_PROJECT="$detected"
+        if [[ -n "$detected" ]]; then
+            JUNTO_PROJECT="$detected"
+            PROJECT_DETECTED=true
+        fi
     fi
 fi
 
@@ -70,6 +83,24 @@ JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL:-http://spg-junto-central:8080/mcp}"
 if [[ -z "${JUNTO_API_KEY:-}" ]]; then
     echo "junto-launch: JUNTO_API_KEY is not set. Add it to ~/.junto/config or export it." >&2
     exit 1
+fi
+
+# Identity sanity check — warn before launch if we couldn't read identity from CLAUDE.md
+if [[ ! -f "$CLAUDE_MD" ]]; then
+    echo "" >&2
+    echo "junto-launch: WARNING — no CLAUDE.md found in $(pwd)" >&2
+    echo "  Falling back to defaults: ${JUNTO_AGENT}@${JUNTO_PROJECT}" >&2
+    echo "  To configure this directory: ~/.junto/junto-setup.sh" >&2
+    echo "" >&2
+elif [[ "$AGENT_DETECTED" == "false" || "$PROJECT_DETECTED" == "false" ]]; then
+    echo "" >&2
+    echo "junto-launch: WARNING — CLAUDE.md found but identity markers are missing or unreadable" >&2
+    [[ "$AGENT_DETECTED" == "false" ]] && \
+        echo "  Agent : ${JUNTO_AGENT} (default — 'Your name is: \`X\`' not found in CLAUDE.md)" >&2
+    [[ "$PROJECT_DETECTED" == "false" ]] && \
+        echo "  Project: ${JUNTO_PROJECT} (default — '<!-- project=\"X\" -->' not found in CLAUDE.md)" >&2
+    echo "  To fix: re-run ~/.junto/junto-setup.sh in $(pwd)" >&2
+    echo "" >&2
 fi
 
 # Pre-flight: ensure channel settings are in remote-settings.json if using plugin
