@@ -2,10 +2,10 @@
 # junto-launch.sh — launch Claude Code with the junto system prompt.
 #
 # Usage:
-#   ~/.junto/junto-launch.sh [--plugin] [claude args...]
+#   ~/.junto/junto-launch.sh [--no-plugin] [claude args...]
 #
 # Options:
-#   --plugin   Enable junto-inbox channel push (Option B). Omit for Option A.
+#   --no-plugin   Disable junto-inbox channel push (push is on by default).
 #
 # Environment overrides (also settable in ~/.junto/config):
 #   JUNTO_AGENT       Agent name          (default: workClaude)
@@ -35,12 +35,12 @@ if [[ -f "$CONFIG" ]]; then
     set +a
 fi
 
-# Parse --plugin flag and pass remaining args to claude
-PLUGIN=false
+# Parse --no-plugin flag and pass remaining args to claude
+PLUGIN=true
 CLAUDE_ARGS=()
 for arg in "$@"; do
-    if [[ "$arg" == "--plugin" ]]; then
-        PLUGIN=true
+    if [[ "$arg" == "--no-plugin" ]]; then
+        PLUGIN=false
     else
         CLAUDE_ARGS+=("$arg")
     fi
@@ -101,9 +101,9 @@ if [[ "$PLUGIN" == "true" ]]; then
     exec claude \
         --append-system-prompt-file "$PROMPT_FILE" \
         --channels "plugin:junto-inbox@tlemmons-junto-inbox" \
-        "${CLAUDE_ARGS[@]}"
+        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}
 else
     exec claude \
         --append-system-prompt-file "$PROMPT_FILE" \
-        "${CLAUDE_ARGS[@]}"
+        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}
 fi

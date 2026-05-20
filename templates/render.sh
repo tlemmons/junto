@@ -122,7 +122,7 @@ done < "${tmp}.s1" > "$tmp"
 rm -f "${tmp}.s1"
 
 # Safety: fail loud on unresolved tokens.
-if remaining=$(grep -n '{{[^}]\+}}' "$tmp" || true); [[ -n "$remaining" ]]; then
+if remaining=$(grep -En '{{[^}]+}}' "$tmp" || true); [[ -n "$remaining" ]]; then
     echo "render.sh: unresolved tokens remain — refusing to ship:" >&2
     echo "$remaining" >&2
     exit 3
