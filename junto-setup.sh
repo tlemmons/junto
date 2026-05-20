@@ -83,7 +83,7 @@ fi
 echo ""
 
 # Server URL
-DEFAULT_URL="http://spg-junto-central:8080/mcp"
+DEFAULT_URL="http://localhost:8080/mcp"
 existing_url="${JUNTO_MEMORY_URL:-$DEFAULT_URL}"
 read -rp "Server URL [${existing_url}]: " url_input
 JUNTO_MEMORY_URL="${url_input:-$existing_url}"
@@ -93,7 +93,7 @@ JUNTO_ROLE="General agent"
 
 # Project dir
 existing_dir="${PROJECT_DIR:-$HOME}"
-read -rp "Path to your primary work directory (e.g. ~/lvt_code/iSpy) [${existing_dir}]: " dir_input
+read -rp "Path to your primary work directory (e.g. ~/code/myproject) [${existing_dir}]: " dir_input
 PROJECT_DIR="${dir_input:-$existing_dir}"
 PROJECT_DIR="${PROJECT_DIR/#\~/$HOME}"
 PROJECT_DIR="$(python3 -c "import os,sys; print(os.path.abspath(sys.argv[1]))" "$PROJECT_DIR")"
@@ -167,7 +167,7 @@ if [[ ! -f "$MANAGED_SETTINGS" ]]; then
 }
 EOF
     echo "Created ${MANAGED_SETTINGS}"
-    echo "  (Ask Tom for the Coralogix token to add LVT telemetry to this file later.)"
+    echo "  (Ask your admin for the telemetry token to add OTEL logging to this file later.)"
 else
     # File exists — merge channel keys in case they're missing (safe for files
     # that already have the OTEL block).
@@ -359,7 +359,7 @@ else
     echo "UNREACHABLE"
     echo ""
     echo "  Warning: the server is not reachable right now."
-    echo "  If you're using spg-junto-central, you must be on the LVT tailnet."
+    echo "  Make sure you are on the same network as your memory server."
     echo "  On WSL2: check that ~/.wslconfig has [wsl2] networkingMode=mirrored"
     echo "  You can proceed — the agent will report the issue when it starts."
 fi

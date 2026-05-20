@@ -24,7 +24,7 @@ Every Claude agent on the team connects to all three. A learning recorded by one
 
 **1. MCP Shared Memory Server**
 
-The server runs on `spg-junto-central` on the LVT tailnet (Tailscale), port 8080. It is the authoritative store for:
+The server runs on `YOUR_MEMORY_SERVER` on the your tailnet (Tailscale), port 8080. It is the authoritative store for:
 
 - **Learnings** — non-obvious discoveries, gotchas, workarounds, and debugging findings. Agents are expected to record these in real time, not just at session end.
 - **Backlog items** — tasks that can be assigned to a specific agent, prioritized, and tracked through to completion.
@@ -58,13 +58,13 @@ Choose Option A if you want to get started quickly and do not need real-time pus
 
 **Option B — Shared Memory + Push Notifications**
 
-Option A plus the junto-inbox plugin. Your agent receives messages from other agents in real time during an active session. This also requires configuring a local `managed-remote-settings.json` to work around a Claude Code Enterprise policy tier issue (described in the setup section). This file also carries the LVT Coralogix telemetry token, which you will need from an admin.
+Option A plus the junto-inbox plugin. Your agent receives messages from other agents in real time during an active session. This also requires configuring a local `managed-remote-settings.json` to work around a Claude Code Enterprise policy tier issue (described in the setup section). This file also carries the your org telemetry token, which you will need from an admin.
 
 Choose Option B if your workflow involves close coordination with other agents or if you want to be reachable during active sessions.
 
 **Option C — Local VM Peer**
 
-Option C is for team members whose connection to `spg-junto-central` (AWS) is unreliable from their home network. A local VM running the junto-memory peer stack provides low-latency local access and continues working during AWS connectivity drops. The peer syncs with `spg-junto-central` when the connection is available. The peer runs in Docker Compose on a local machine (for example, a NUC, home server, or spare laptop on the same LAN).
+Option C is for team members whose connection to `YOUR_MEMORY_SERVER` (AWS) is unreliable from their home network. A local VM running the junto-memory peer stack provides low-latency local access and continues working during AWS connectivity drops. The peer syncs with `YOUR_MEMORY_SERVER` when the connection is available. The peer runs in Docker Compose on a local machine (for example, a NUC, home server, or spare laptop on the same LAN).
 
 Choose Option C if you experience frequent tailnet connectivity drops or want sub-millisecond MCP latency from your local machine.
 
@@ -82,7 +82,7 @@ Prerequisites that require human action are marked with `STOP: HUMAN REQUIRED`. 
 
 **STOP: HUMAN REQUIRED — Tailnet Access**
 
-Before any setup can proceed, the user's machine must be on the LVT Tailscale tailnet. A tailnet admin must:
+Before any setup can proceed, the user's machine must be on the Tailscale tailnet. A tailnet admin must:
 
 1. Add the user to the tailnet at the Tailscale admin console.
 2. Have the user install Tailscale on their machine (Windows host or macOS) and sign in.
@@ -93,11 +93,11 @@ On macOS: Tailscale runs as a native macOS app. No additional network bridging i
 
 **STOP: HUMAN REQUIRED — Junto API Key**
 
-The shared memory server requires an API key. Obtain `<JUNTO_API_KEY>` from Tom or another team admin. Do not proceed until this value is in hand.
+The shared memory server requires an API key. Obtain `<JUNTO_API_KEY>` from your admin. Do not proceed until this value is in hand.
 
 **STOP: HUMAN REQUIRED — Coralogix Token (Option B only)**
 
-If setting up Option B, obtain `<LVT_CORALOGIX_TOKEN>` from Tom or infosec. This token is placed in `managed-remote-settings.json` and enables OTEL telemetry to the LVT Coralogix instance.
+If setting up Option B, obtain `<YOUR_TELEMETRY_TOKEN>` from your admin. This token is placed in `managed-remote-settings.json` and enables OTEL telemetry to your Coralogix instance.
 
 **Clone the junto templates repository**
 
@@ -128,14 +128,14 @@ On the Windows host (not inside WSL2), ensure `C:\Users\<username>\.wslconfig` c
 networkingMode=mirrored
 ```
 
-If the file does not exist, create it with that content. After saving, run `wsl --shutdown` from a Windows command prompt and restart WSL2. This allows WSL2 to reach Tailscale MagicDNS addresses (including `spg-junto-central`).
+If the file does not exist, create it with that content. After saving, run `wsl --shutdown` from a Windows command prompt and restart WSL2. This allows WSL2 to reach Tailscale MagicDNS addresses (including `YOUR_MEMORY_SERVER`).
 
 #### Step 2: Verify Tailnet Connectivity
 
 From inside WSL2 (Windows) or Terminal (macOS), run:
 
 ```bash
-curl http://spg-junto-central:8080/health
+curl http://YOUR_MEMORY_SERVER:8080/health
 ```
 
 Expected response: HTTP 200 with a JSON body containing a status field (e.g., `{"status":"ok",...}`).
@@ -159,7 +159,7 @@ Merge the following blocks into the top-level JSON object. If `mcpServers` alrea
 ```json
 "mcpServers": {
   "junto": {
-    "url": "http://spg-junto-central:8080/mcp",
+    "url": "http://YOUR_MEMORY_SERVER:8080/mcp",
     "headers": {
       "X-API-Key": "<JUNTO_API_KEY>"
     }
@@ -191,7 +191,7 @@ Operational rules source: tlemmons/junto/templates/junto-system-prompt.md.tmpl �
 
 **STOP: HUMAN REQUIRED**
 
-If you are creating or substantially rewriting `~/.claude/CLAUDE.md`, ask Tom to confirm the correct agent name and default project for this user before writing the file.
+If you are creating or substantially rewriting `~/.claude/CLAUDE.md`, ask your junto admin to confirm the correct agent name and default project for this user before writing the file.
 
 #### Step 5: Configure Per-Project `settings.local.json`
 
@@ -231,7 +231,7 @@ JUNTO_DIR="${HOME}/.junto"
 AGENT="${JUNTO_AGENT:-workClaude}"           # override: JUNTO_AGENT=myname ./junto-launch.sh
 PROJECT="${JUNTO_PROJECT:-junto}"            # override: JUNTO_PROJECT=myproject ./junto-launch.sh
 ROLE="${JUNTO_ROLE:-General work agent}"
-SHARED_MEMORY_URL="http://spg-junto-central:8080/mcp"
+SHARED_MEMORY_URL="http://YOUR_MEMORY_SERVER:8080/mcp"
 API_KEY="${JUNTO_API_KEY:?JUNTO_API_KEY must be set}"
 
 PROMPT_FILE=$(bash "${JUNTO_DIR}/templates/render.sh" \
@@ -286,20 +286,20 @@ Complete all Option A steps first (Steps 1–7). Then continue here.
 
 #### Step B-1: Create `~/.claude/managed-remote-settings.json`
 
-Create the file `~/.claude/managed-remote-settings.json` with the following content. Replace `<LVT_CORALOGIX_TOKEN>` with the actual token from the prerequisite step.
+Create the file `~/.claude/managed-remote-settings.json` with the following content. Replace `<YOUR_TELEMETRY_TOKEN>` with the actual token from the prerequisite step.
 
 ```json
 {
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
     "OTEL_EXPORTER_OTLP_ENDPOINT": "https://ingress.us1.coralogix.com",
-    "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer <LVT_CORALOGIX_TOKEN>",
+    "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer <YOUR_TELEMETRY_TOKEN>",
     "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
     "OTEL_LOGS_EXPORTER": "otlp",
     "OTEL_LOG_TOOL_DETAILS": "1",
     "OTEL_LOG_USER_PROMPTS": "1",
     "OTEL_METRICS_EXPORTER": "otlp",
-    "OTEL_RESOURCE_ATTRIBUTES": "cx.application.name=claude-code,cx.subsystem.name=claude-code-cli,deployment.environment=prod,service.namespace=lvt-infosec"
+    "OTEL_RESOURCE_ATTRIBUTES": "cx.application.name=claude-code,cx.subsystem.name=claude-code-cli,deployment.environment=prod,service.namespace=YOUR_ORG"
   },
   "channelsEnabled": true,
   "allowedChannelPlugins": [
@@ -310,7 +310,7 @@ Create the file `~/.claude/managed-remote-settings.json` with the following cont
 
 This file serves two purposes: it provides the OTEL telemetry configuration that would otherwise come from the org managed settings fetched from Anthropic's backend, and it adds the channel permissions needed for the inbox plugin. Both must be present — omitting the OTEL block breaks telemetry.
 
-**Why this file is necessary:** Claude Code Enterprise periodically fetches org managed settings from Anthropic's backend and caches them in `~/.claude/remote-settings.json`. This cached file is the highest-priority policy tier and overrides all other settings for security-gated features, including channels. The LVT org managed settings contain only OTEL telemetry config — they do not include `channelsEnabled`. Without that key in the policy tier, Claude Code falls back to Anthropic's default plugin ledger, which does not include the private `tlemmons-junto-inbox` marketplace, and channel registration fails. Setting `CLAUDE_CODE_REMOTE_SETTINGS_PATH` (done in the next step) redirects Claude Code to use the local stable file instead of the fetched one.
+**Why this file is necessary:** Claude Code Enterprise periodically fetches org managed settings from Anthropic's backend and caches them in `~/.claude/remote-settings.json`. This cached file is the highest-priority policy tier and overrides all other settings for security-gated features, including channels. The your org managed settings contain only OTEL telemetry config — they do not include `channelsEnabled`. Without that key in the policy tier, Claude Code falls back to Anthropic's default plugin ledger, which does not include the private `tlemmons-junto-inbox` marketplace, and channel registration fails. Setting `CLAUDE_CODE_REMOTE_SETTINGS_PATH` (done in the next step) redirects Claude Code to use the local stable file instead of the fetched one.
 
 #### Step B-2: Update `~/.claude/settings.json` for Option B
 
@@ -433,7 +433,7 @@ JUNTO_DIR="${HOME}/.junto"
 AGENT="${JUNTO_AGENT:-workClaude}"
 PROJECT="${JUNTO_PROJECT:-junto}"
 ROLE="${JUNTO_ROLE:-General work agent}"
-SHARED_MEMORY_URL="http://spg-junto-central:8080/mcp"
+SHARED_MEMORY_URL="http://YOUR_MEMORY_SERVER:8080/mcp"
 API_KEY="${JUNTO_API_KEY:?JUNTO_API_KEY must be set}"
 
 # Ensure channel settings are present before launch
@@ -480,17 +480,17 @@ If that line does not appear, see the Troubleshooting section.
 
 ### Option C Additional Steps: Local VM Peer
 
-Complete Option A steps first (Steps 1–7). Option C replaces the remote `spg-junto-central` URL with a local peer that syncs to it. You do not need Option B to use Option C, but you can combine them.
+Complete Option A steps first (Steps 1–7). Option C replaces the remote `YOUR_MEMORY_SERVER` URL with a local peer that syncs to it. You do not need Option B to use Option C, but you can combine them.
 
 **STOP: HUMAN REQUIRED — Register the peer machine**
 
-Before setting up the peer, Tom must add the peer machine to the LVT tailnet and assign it a hostname (e.g., `spg-<yourname>`). Provide Tom with the machine's Tailscale node key or have the machine join the tailnet first. Do not proceed until Tom confirms the hostname.
+Before setting up the peer, An admin must add the peer machine to the your tailnet and assign it a hostname (e.g., `spg-<yourname>`). Provide Tom with the machine's Tailscale node key or have the machine join the tailnet first. Do not proceed until Tom confirms the hostname.
 
 #### Prerequisites for Option C
 
 - A Linux machine on the local LAN (VM, NUC, spare server, or spare laptop) that can run Docker Compose.
 - Docker and Docker Compose installed on that machine.
-- Tailscale installed and joined to the LVT tailnet on that machine.
+- Tailscale installed and joined to the your tailnet on that machine.
 
 #### Step C-1: Clone junto-memory on the peer machine
 
@@ -522,7 +522,7 @@ In `~/.junto/junto-launch.sh`, change the `SHARED_MEMORY_URL` line to use the pe
 SHARED_MEMORY_URL="http://<peer-hostname>:8080/mcp"
 ```
 
-The peer will sync to `spg-junto-central` automatically when the tailnet connection is available.
+The peer will sync to `YOUR_MEMORY_SERVER` automatically when the tailnet connection is available.
 
 #### Step C-5: Verify peer health
 
@@ -541,7 +541,7 @@ Run all of these checks in order after completing any option's setup.
 **Check 1 — Tailnet health**
 
 ```bash
-curl http://spg-junto-central:8080/health
+curl http://YOUR_MEMORY_SERVER:8080/health
 ```
 
 Expected: HTTP 200, JSON body with `"status": "ok"` or similar.
@@ -576,11 +576,11 @@ Listening for channel messages from: plugin:junto-inbox@tlemmons-junto-inbox
 
 ### Troubleshooting
 
-**`curl http://spg-junto-central:8080/health` — connection refused or timeout**
+**`curl http://YOUR_MEMORY_SERVER:8080/health` — connection refused or timeout**
 
 - Windows: Confirm Tailscale is running on the Windows host (not WSL2). Run `tailscale status` on the Windows side. Confirm `~/.wslconfig` has `networkingMode=mirrored` and that WSL2 was restarted after that change.
 - macOS: Confirm the Tailscale app is running and connected. Check the Tailscale menu bar icon.
-- Both: Confirm the user has been added to the LVT tailnet by an admin. The machine will show in the Tailscale admin console if it is properly enrolled.
+- Both: Confirm the user has been added to the your tailnet by an admin. The machine will show in the Tailscale admin console if it is properly enrolled.
 - Fallback: Try `curl http://172.26.18.219:8080/health`. If this works, the corp VPN is reachable but MagicDNS is not. Use the IP address in the MCP URL as a temporary workaround and report the MagicDNS issue to a tailnet admin.
 
 **`memory_start_session` returns an authentication error**
@@ -608,7 +608,7 @@ The most common causes, in order:
 
 **Option B: Coralogix telemetry stops working after setup**
 
-The `OTEL_EXPORTER_OTLP_HEADERS` value in `managed-remote-settings.json` contains a Coralogix bearer token. If infosec rotates this token, each user with Option B must update that header manually. Obtain the new token from Tom or infosec and update the `Authorization=Bearer <token>` value in `~/.claude/managed-remote-settings.json`.
+The `OTEL_EXPORTER_OTLP_HEADERS` value in `managed-remote-settings.json` contains a Coralogix bearer token. If infosec rotates this token, each user with Option B must update that header manually. Obtain the new token from your admin and update the `Authorization=Bearer <token>` value in `~/.claude/managed-remote-settings.json`.
 
 **Agent does not follow guidelines / session-start behavior seems wrong**
 
@@ -628,7 +628,7 @@ The `OTEL_EXPORTER_OTLP_HEADERS` value in `managed-remote-settings.json` contain
 
 **Coralogix token rotation (Option B)**
 
-The `OTEL_EXPORTER_OTLP_HEADERS` value in `~/.claude/managed-remote-settings.json` contains a Coralogix bearer token. If infosec rotates this token, each user with Option B must update that header manually. Obtain the new token from Tom or infosec and update the `Authorization=Bearer <token>` value in that file.
+The `OTEL_EXPORTER_OTLP_HEADERS` value in `~/.claude/managed-remote-settings.json` contains a Coralogix bearer token. If infosec rotates this token, each user with Option B must update that header manually. Obtain the new token from your admin and update the `Authorization=Bearer <token>` value in that file.
 
 **Template updates**
 
@@ -666,7 +666,7 @@ Every junto session follows the same three-step pattern: **launch → work → p
 **1. Launch** — open a terminal, go to your project folder, and run the launcher:
 
 ```bash
-cd ~/lvt_code/iSpy
+cd ~/code/myproject
 ~/.junto/junto-launch.sh
 ```
 
@@ -702,10 +702,10 @@ The folder's `CLAUDE.md` file tells junto which project you're connecting to. Wh
 **Example:**
 
 ```
-~/lvt_code/iSpy/CLAUDE.md contains:  <!-- project="ispy" -->
+~/code/myproject/CLAUDE.md contains:  <!-- project="ispy" -->
   → launching from there registers you as: juntoRoy@ispy
 
-~/lvt_code/awareness/CLAUDE.md contains:  <!-- project="awareness" -->
+~/code/awareness/CLAUDE.md contains:  <!-- project="awareness" -->
   → launching from there registers you as: juntoRoy@awareness
 ```
 

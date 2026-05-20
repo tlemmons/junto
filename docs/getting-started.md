@@ -335,7 +335,7 @@ Realistic next steps:
 - **File a backlog item** if you want it triaged by the junto agents
   themselves: from any session connected to junto-memory, call
   `memory_add_backlog_item(project="junto", title="...", description="...")`.
-- **Time-sensitive contact** — tom@lemmons.net out-of-band.
+- **Time-sensitive contact** — reach your junto admin out-of-band.
 
 The umbrella is intentionally small. If something here seems
 underspecified for your setup, the answer probably lives in the
