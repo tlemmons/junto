@@ -13,6 +13,15 @@ removing or renaming one is breaking and noted under "Changed".
 ## Unreleased
 
 ### Added
+- `docs/getting-started.md` — top-level adopter onboarding doc. Lays out
+  the three-layer model (knowledge bus + agent identity + optional live
+  delivery), walks the direct-connect (Path A) first-time path end-to-end
+  (curl-verify → MCP registration → clone umbrella → render template →
+  launch + smoke test), and provides decision points for "do I need a
+  peer?" (handing off to junto-memory's `workjunto-pilot-setup.md`) and
+  "do I need the inbox plugin?". Layer + decision-point shape per
+  workClaude review (msg_a703ccaddd66, C1/C2). Closes coordinator review
+  item #1 (`docs/` end-to-end setup guide).
 - `templates/junto-system-prompt.md.tmpl` — base system-prompt template
   (~134 lines).
 - `templates/overlays/example.md` — annotated starter overlay file.

@@ -4,9 +4,10 @@
 
 This repo is the umbrella for the Junto system. It hosts:
 
-- **[`templates/`](./templates/)** — the canonical agent system-prompt template. Every junto agent injects this at launch via `claude --append-system-prompt-file`. Start here if you're standing up a new agent. See [`templates/README.md`](./templates/README.md) for the base + optional project overlay model.
+- **[`docs/getting-started.md`](./docs/getting-started.md)** — new adopter? Start here. Walks from zero to "first agent talking to junto-memory" without assuming you've read any other repo.
+- **[`templates/`](./templates/)** — the canonical agent system-prompt template. Every junto agent injects this at launch via `claude --append-system-prompt-file`. See [`templates/README.md`](./templates/README.md) for the base + optional project overlay model.
+- **[`docs/claude-md-migration.md`](./docs/claude-md-migration.md)** — annotated before/after for thinning an existing project's `CLAUDE.md` once the template owns operational rules.
 - **[`CHANGELOG.md`](./CHANGELOG.md)** — adopter-visible changes to the umbrella, especially the template variable surface.
-- *(future)* `docs/` — cross-component how-tos that don't fit any single component.
 
 For the runtime stack itself, go to **[tlemmons/junto-stack](https://github.com/tlemmons/junto-stack)** — docker-compose bootstrap for memory + mongo + chroma.
 
