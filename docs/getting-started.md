@@ -76,8 +76,11 @@ machine, no plugin needed for v0.
 
 ### A1. Verify the server is reachable
 
+The MCP JSON-RPC endpoint is at `/mcp`, but the health probe is at root
+`/health` (not under `/mcp`):
+
 ```sh
-curl -sf "$JUNTO_MEMORY_URL/health"   # JUNTO_MEMORY_URL = http://your-server:8080/mcp
+curl -sf http://your-server:8080/health
 ```
 
 If you get `{"status":"healthy",...}`, you're wired up. If not, fix
@@ -90,7 +93,8 @@ in the peer-deployment doc — the diagnostic patterns generalize.
 
 Wherever your MCP client configuration lives (`~/.mcp.json`, Claude Code
 project `.mcp.json`, or per-project `mcpServers` in `claude.json`), add a
-`junto` entry:
+`junto` entry. Use the full `/mcp` path on the URL — the JSON-RPC
+endpoint lives there:
 
 ```json
 {
@@ -102,6 +106,10 @@ project `.mcp.json`, or per-project `mcpServers` in `claude.json`), add a
   }
 }
 ```
+
+(Claude Code adopters can omit the `type` field — `url` alone is enough;
+the field is required by other MCP clients that support multiple
+transports.)
 
 If the server requires auth, add the API key per your MCP client's
 documented mechanism (typically a header or env var; varies by client).
@@ -182,6 +190,8 @@ Reach for a local peer when:
 - You need writes to keep flowing during network outages between your
   laptop and the central server (the peer accumulates locally and
   replicates when the link returns).
+- You're remote and your connectivity to the central server is
+  intermittent (home network, hotel/cafe wifi, mobile tether).
 - You're testing the system's resilience properties on purpose.
 - Your team is running 3+ agents off the same network link and the round
   trip to the central server is a measurable bottleneck.
@@ -240,6 +250,18 @@ template injects the "plugin session ≠ agent session" clarifier block.
 
 See the [junto-inbox README](https://github.com/tlemmons/junto-inbox) for
 the plugin's own setup details, marker semantics, and known gotchas.
+
+**Corporate Claude Code deployments — managed-settings gotcha.** If your
+Claude Code install pulls a managed-settings policy file
+(`/etc/claude-code/managed-settings.json` on Linux/macOS, or via
+`CLAUDE_CODE_REMOTE_SETTINGS_PATH`), then `channelsEnabled` **and**
+`allowedChannelPlugins` must be present at that policy tier — not just
+in your user settings. A user-tier override does not unblock a
+policy-tier allowlist gap. Symptom at launch: `not on the approved
+channels allowlist`. Fix: edit the policy file directly (or point
+`CLAUDE_CODE_REMOTE_SETTINGS_PATH` at a file you control) to include
+both fields. This bit the workJunto pilot for a full session before the
+policy-tier distinction was found.
 
 ---
 

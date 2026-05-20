@@ -22,6 +22,13 @@ removing or renaming one is breaking and noted under "Changed".
   "do I need the inbox plugin?". Layer + decision-point shape per
   workClaude review (msg_a703ccaddd66, C1/C2). Closes coordinator review
   item #1 (`docs/` end-to-end setup guide).
+- `docs/getting-started.md` fixes from workClaude pilot review
+  (msg_2cdc44f7e43f): corrected A1 health-check URL (`/health` is at
+  root, not under `/mcp`); added Claude Code MCP-config note (`type`
+  field optional on CC); added intermittent-connectivity bullet to "do I
+  need a peer?"; added corporate managed-settings policy-tier gotcha to
+  Layer 3 (channelsEnabled + allowedChannelPlugins must be in the
+  policy-tier settings file, not user settings).
 - `templates/junto-system-prompt.md.tmpl` — base system-prompt template
   (~134 lines).
 - `templates/overlays/example.md` — annotated starter overlay file.
