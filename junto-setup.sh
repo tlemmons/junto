@@ -89,17 +89,28 @@ read -rp "Server URL [${existing_url}]: " url_input
 JUNTO_MEMORY_URL="${url_input:-$existing_url}"
 echo ""
 
-JUNTO_PROJECT="junto"
 JUNTO_ROLE="General agent"
 
 # Project dir
 existing_dir="${PROJECT_DIR:-$HOME}"
-read -rp "Path to working directory to launch from [${existing_dir}]: " dir_input
+read -rp "Path to your primary work directory (e.g. ~/lvt_code/iSpy) [${existing_dir}]: " dir_input
 PROJECT_DIR="${dir_input:-$existing_dir}"
 PROJECT_DIR="${PROJECT_DIR/#\~/$HOME}"
 PROJECT_DIR="$(python3 -c "import os,sys; print(os.path.abspath(sys.argv[1]))" "$PROJECT_DIR")"
 mkdir -p "$PROJECT_DIR"
 echo "  Project dir: ${PROJECT_DIR}"
+echo ""
+
+# Project name — derived from folder, user confirms or changes
+dir_basename="$(basename "$PROJECT_DIR")"
+# Lowercase and strip non-alphanumeric (portable, bash 3.2 safe)
+default_project="$(echo "$dir_basename" | tr '[:upper:]' '[:lower:]' | tr -dc 'a-z0-9-')"
+existing_project="${JUNTO_PROJECT:-$default_project}"
+echo "Project identifier — this becomes your agent's context tag (e.g. juntoRoy@ispy)."
+echo "  Use your actual project name in lowercase: ispy, awareness, junto, etc."
+read -rp "Project name [${existing_project}]: " project_input
+JUNTO_PROJECT="${project_input:-$existing_project}"
+echo "  Agent context: ${JUNTO_AGENT}@${JUNTO_PROJECT}"
 echo ""
 
 # ── Write config ───────────────────────────────────────────────────────────────
@@ -277,12 +288,12 @@ if [[ ! -f "$CLAUDE_MD" ]]; then
 
 Your name is: \`${JUNTO_AGENT}\`
 
-This CLAUDE.md identifies you on the junto coordination layer.
-When working on a specific project, launch from that project's directory —
-its CLAUDE.md will set the project context automatically.
+This CLAUDE.md tells junto who you are and what project you're working on.
+Launch Claude from this directory to connect as ${JUNTO_AGENT}@${JUNTO_PROJECT}.
+For a different project, create a CLAUDE.md in that folder with the right project tag.
 
 <!-- junto identity markers — used by junto-launch.sh for auto-detection -->
-<!-- project="junto" -->
+<!-- project="${JUNTO_PROJECT}" -->
 EOF
     echo "CLAUDE.md created at ${CLAUDE_MD}"
 else
