@@ -93,6 +93,10 @@ RENDER_ARGS=(
 
 PROMPT_FILE=$(bash "${TEMPLATES}/render.sh" "${RENDER_ARGS[@]}")
 
+# Opt into Sonnet 1M context window — same per-token cost as 200K, 5x working context.
+# Reduces compaction frequency significantly. Override by exporting this var before launch.
+export ANTHROPIC_DEFAULT_SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-sonnet-4-6[1m]}"
+
 echo "junto: launching ${JUNTO_AGENT}@${JUNTO_PROJECT} → ${JUNTO_MEMORY_URL}" >&2
 [[ "$PLUGIN" == "true" ]] && echo "junto: push plugin enabled" >&2
 
