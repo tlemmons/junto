@@ -263,6 +263,29 @@ channels allowlist`. Fix: edit the policy file directly (or point
 both fields. This bit the workJunto pilot for a full session before the
 policy-tier distinction was found.
 
+**MDM/EDR runtime overwrites — use `CLAUDE_CODE_REMOTE_SETTINGS_PATH` as
+the durable escape.** Some corporate environments run agents (Coralogix,
+jamf, MDM frameworks, EDR clients) that periodically rewrite
+`/etc/claude-code/managed-settings.json` from a central template. If
+your channel settings live in that file, those agents will silently
+strip them on their next sync. Symptom: channel push works after a
+manual edit, then mysteriously stops minutes-to-hours later, sometimes
+correlated with a system-management interval rather than anything you
+did. Durable fix: point `CLAUDE_CODE_REMOTE_SETTINGS_PATH` at a separate
+file the overwriting agent doesn't know about
+(e.g., `/etc/claude-code/managed-remote-settings.json`) and put your
+channel settings there. Confirmed at the workJunto pilot site —
+`managed-remote-settings.json` survived where `managed-settings.json`
+got clobbered. Set the env var in your launcher script so every agent
+session inherits it:
+
+```sh
+export CLAUDE_CODE_REMOTE_SETTINGS_PATH=/etc/claude-code/managed-remote-settings.json
+```
+
+Or via a managed-settings env block if your MDM lets you push env vars
+without clobbering the settings file itself.
+
 ---
 
 ## After the first agent works
