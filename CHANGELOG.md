@@ -13,6 +13,19 @@ removing or renaming one is breaking and noted under "Changed".
 ## Unreleased
 
 ### Added
+- `docs/getting-started.md` — channel-plugin section: documented the
+  `--dangerously-load-development-channels` escape hatch for environments
+  where policy-tier `allowedChannelPlugins` is impossible, plus the
+  per-launch confirmation-dialog cost. Clarified that the "approved
+  channels" list is local (your policy-tier file), not a central
+  Anthropic-managed list. From workClaude pilot at LVT after they
+  fell back to the flag (`msg_70798692c7db`, 2026-05-22).
+- `docs/getting-started.md` — new section "Restarting the memory server":
+  channel push auto-recovers, main MCP tool path does not.
+  `/mcp reconnect <server>` is the per-tab recovery command. Includes
+  practical guidance (restart while quiescent, plan the operator pass)
+  and notes the graceful-restart admin tools' scope. From the
+  2026-05-22 deploy where this gap surfaced.
 - `docs/getting-started.md` — top-level adopter onboarding doc. Lays out
   the three-layer model (knowledge bus + agent identity + optional live
   delivery), walks the direct-connect (Path A) first-time path end-to-end

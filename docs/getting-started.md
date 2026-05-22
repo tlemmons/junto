@@ -286,6 +286,28 @@ export CLAUDE_CODE_REMOTE_SETTINGS_PATH=/etc/claude-code/managed-remote-settings
 Or via a managed-settings env block if your MDM lets you push env vars
 without clobbering the settings file itself.
 
+**No path to policy-tier settings? `--dangerously-load-development-channels`
+is the escape hatch with a per-launch cost.** When you genuinely can't
+get `allowedChannelPlugins` into a policy-tier file (no MDM access, no
+admin on the host, locked-down corporate image), Claude Code accepts a
+launcher flag that bypasses the allowlist gate:
+
+```sh
+claude --dangerously-load-development-channels \
+       --channels plugin:junto-inbox@tlemmons-junto-inbox
+```
+
+The cost: Claude Code presents a confirmation dialog at every launch
+asking you to acknowledge the risk. You click through it once per
+`claude` invocation. For interactive use this is friction; for
+scripted/CI agents it's a hard blocker — there is no `--yes` flag.
+Prefer the managed-settings allowlist whenever you have any path to it;
+treat `--dangerously` as "unblock myself today, fix the policy
+tomorrow." Note that the "approved channels" list is *local* (your
+policy-tier file), not a central Anthropic-managed list — getting a
+plugin onto your own policy allowlist is an admin action, not a
+publisher-side approval workflow.
+
 ---
 
 ## After the first agent works
@@ -322,6 +344,49 @@ Realistic next steps:
    junto-memory shapes — state spec naming (`state:<agent>`), system
    sender identity (`system@<project>`), marker strings. See
    [templates/README.md → Wire conventions](../templates/README.md#wire-conventions-template-baked).
+
+---
+
+## Restarting the memory server
+
+When you restart the junto-memory service (image rebuild, schema
+migration, config change), recovery happens at two layers and they
+behave differently:
+
+- **Channel push (junto-inbox plugin SSE stream):** auto-recovers.
+  Each agent's plugin re-handshakes with the server on its own;
+  channel blocks resume flowing without operator intervention. A
+  channel block delivered post-restart is your confirmation.
+- **Main MCP tool path (direct `memory_*` calls from Claude Code's
+  tool layer):** does NOT auto-recover. The plugin and the main MCP
+  path use separate clients with different reconnect logic. Claude
+  Code's MCP-transport auto-reconnect handles transport errors (5xx,
+  refused, timeout) but not the application-level `-32600 Session not
+  found` that follows from a stale `mcp-session-id` after the server
+  process restarts. Each agent tab's first `memory_*` call after a
+  restart will fail. Recovery is one slash command per tab:
+
+  ```text
+  /mcp reconnect junto
+  ```
+
+  (Replace `junto` with whatever you named the MCP server in your CC
+  config — `~/.claude.json` or `~/.config/claude-code/.mcp.json`.)
+
+Practical guidance:
+
+- **Restart while your agents are quiescent.** A "cleared, awaiting
+  `go`" tab has nothing to drain; the manual `/mcp reconnect` is
+  invisible to its workflow if you do it before typing `go`.
+- **Plan the operator pass.** Six open tabs is six `/mcp reconnect`
+  keystrokes. Worth scripting via your terminal multiplexer if you do
+  this regularly.
+- **The graceful-restart admin tools**
+  (`memory_admin(action="drain")` and
+  `memory_admin(action="broadcast_restart_warning")`) telegraph
+  intent to mid-task live populations. They don't close the reconnect
+  gap on the main MCP path — that's a Claude Code client behavior the
+  server can't fix from its side. File upstream if you need it.
 
 ---
 
