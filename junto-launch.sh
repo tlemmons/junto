@@ -83,7 +83,10 @@ JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL:-http://your-junto-server:8080/mcp}"
 # Export so the junto-inbox plugin subprocess inherits the correct identity.
 # Without this, the plugin defaults to whatever JUNTO_AGENT was in the parent
 # shell, causing live_subscribers to register under the wrong name.
-export JUNTO_AGENT JUNTO_PROJECT JUNTO_ROLE JUNTO_MEMORY_URL JUNTO_CHANNEL_DELAY
+# The plugin reads JUNTO_SHARED_MEMORY_URL (via envVar('SHARED_MEMORY_URL')),
+# but the config file uses JUNTO_MEMORY_URL — bridge them here.
+JUNTO_SHARED_MEMORY_URL="${JUNTO_MEMORY_URL}"
+export JUNTO_AGENT JUNTO_PROJECT JUNTO_ROLE JUNTO_MEMORY_URL JUNTO_SHARED_MEMORY_URL JUNTO_CHANNEL_DELAY
 
 if [[ -z "${JUNTO_API_KEY:-}" ]]; then
     echo "junto-launch: JUNTO_API_KEY is not set. Add it to ~/.junto/config or export it." >&2
