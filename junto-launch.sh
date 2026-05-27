@@ -46,39 +46,114 @@ for arg in "$@"; do
     fi
 done
 
-# Auto-detect agent/project from CLAUDE.md in cwd (env vars win if already set)
+# Identity resolution — CLAUDE.md in cwd is the source of truth.
+# Env vars (from config or shell) win if already set — hard override.
 CLAUDE_MD="$(pwd)/CLAUDE.md"
-AGENT_DETECTED=false
-PROJECT_DETECTED=false
 
-if [[ -f "$CLAUDE_MD" ]]; then
-    if [[ -n "${JUNTO_AGENT:-}" ]]; then
-        AGENT_DETECTED=true
-    else
-        detected=$(grep -m1 'Your name is:.*`' "$CLAUDE_MD" 2>/dev/null \
-            | sed 's/.*`\([^`]*\)`.*/\1/' || true)
-        if [[ -n "$detected" ]]; then
-            JUNTO_AGENT="$detected"
-            AGENT_DETECTED=true
-        fi
+_junto_read_claude_md() {
+    if [[ -n "${JUNTO_AGENT:-}" && -n "${JUNTO_PROJECT:-}" ]]; then
+        return  # both already set by env/config override
     fi
-    if [[ -n "${JUNTO_PROJECT:-}" ]]; then
-        PROJECT_DETECTED=true
-    else
-        detected=$(grep -m1 'project="[^"]*"' "$CLAUDE_MD" 2>/dev/null \
+    if [[ ! -f "$CLAUDE_MD" ]]; then
+        return
+    fi
+    if [[ -z "${JUNTO_AGENT:-}" ]]; then
+        local a
+        a=$(grep -m1 'Your name is:.*`' "$CLAUDE_MD" 2>/dev/null \
+            | sed 's/.*`\([^`]*\)`.*/\1/' || true)
+        [[ -n "$a" ]] && JUNTO_AGENT="$a"
+    fi
+    if [[ -z "${JUNTO_PROJECT:-}" ]]; then
+        local p
+        p=$(grep -m1 'project="[^"]*"' "$CLAUDE_MD" 2>/dev/null \
             | sed 's/.*project="\([^"]*\)".*/\1/' || true)
-        if [[ -n "$detected" ]]; then
-            JUNTO_PROJECT="$detected"
-            PROJECT_DETECTED=true
+        [[ -n "$p" ]] && JUNTO_PROJECT="$p"
+    fi
+}
+
+_junto_find_parent_project() {
+    local dir
+    dir="$(dirname "$(pwd)")"
+    while [[ "$dir" != "/" && "$dir" != "$HOME" ]]; do
+        if [[ -f "$dir/CLAUDE.md" ]]; then
+            local p
+            p=$(grep -m1 'project="[^"]*"' "$dir/CLAUDE.md" 2>/dev/null \
+                | sed 's/.*project="\([^"]*\)".*/\1/' || true)
+            if [[ -n "$p" ]]; then
+                echo "$p"
+                return
+            fi
         fi
+        dir="$(dirname "$dir")"
+    done
+}
+
+_junto_init_directory() {
+    local default_agent default_project input_agent input_project
+    default_agent="$(basename "$(pwd)")"
+    default_project="$(_junto_find_parent_project)"
+    [[ -z "$default_project" ]] && default_project="$(basename "$(pwd)")"
+
+    echo "" >&2
+    echo "junto: No CLAUDE.md found in $(pwd)" >&2
+    echo "junto: Enter identity for this directory (permanent — saved to CLAUDE.md)." >&2
+    echo "" >&2
+    printf "  Agent name   [%s]: " "$default_agent" >/dev/tty
+    read -r input_agent </dev/tty
+    printf "  Project name [%s]: " "$default_project" >/dev/tty
+    read -r input_project </dev/tty
+
+    JUNTO_AGENT="${input_agent:-$default_agent}"
+    JUNTO_PROJECT="${input_project:-$default_project}"
+
+    cat > "$CLAUDE_MD" << EOF
+# ${JUNTO_AGENT}
+
+Your name is: \`${JUNTO_AGENT}\`
+
+<!-- project="${JUNTO_PROJECT}" -->
+EOF
+    echo "" >&2
+    echo "junto: Created CLAUDE.md — ${JUNTO_AGENT}@${JUNTO_PROJECT}" >&2
+    echo "" >&2
+}
+
+_junto_read_claude_md
+
+if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
+    if [[ -t 0 && -t 1 ]]; then
+        _junto_init_directory
+    else
+        # Non-interactive fallback — use folder name, don't hang
+        JUNTO_AGENT="${JUNTO_AGENT:-$(basename "$(pwd)")}"
+        JUNTO_PROJECT="${JUNTO_PROJECT:-$(basename "$(pwd)")}"
+        echo "junto-launch: no CLAUDE.md in $(pwd), using ${JUNTO_AGENT}@${JUNTO_PROJECT}" >&2
+        echo "  Launch interactively to set up identity for this directory." >&2
+    fi
+elif [[ -f "$CLAUDE_MD" ]]; then
+    # CLAUDE.md exists but markers were unreadable — warn, don't re-prompt
+    local_agent="${JUNTO_AGENT:-}"
+    local_project="${JUNTO_PROJECT:-}"
+    if [[ -z "$local_agent" || -z "$local_project" ]]; then
+        echo "" >&2
+        echo "junto-launch: WARNING — CLAUDE.md found but identity markers are missing" >&2
+        [[ -z "${JUNTO_AGENT:-}" ]] && \
+            echo "  Agent  : not found (need: Your name is: \`name\`)" >&2
+        [[ -z "${JUNTO_PROJECT:-}" ]] && \
+            echo "  Project: not found (need: <!-- project=\"name\" -->)" >&2
+        echo "  Delete CLAUDE.md and relaunch to re-initialize." >&2
+        echo "" >&2
     fi
 fi
 
-# Apply defaults
-JUNTO_AGENT="${JUNTO_AGENT:-junto-user}"
-JUNTO_PROJECT="${JUNTO_PROJECT:-junto}"
+# Apply defaults for anything still unset
 JUNTO_ROLE="${JUNTO_ROLE:-General work agent}"
 JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL:-http://your-junto-server:8080/mcp}"
+
+if [[ -z "${JUNTO_API_KEY:-}" ]]; then
+    echo "junto-launch: JUNTO_API_KEY is not set. Add it to ~/.junto/config or export it." >&2
+    exit 1
+fi
 
 # Export so the junto-inbox plugin subprocess inherits the correct identity.
 # Without this, the plugin defaults to whatever JUNTO_AGENT was in the parent
@@ -87,29 +162,6 @@ JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL:-http://your-junto-server:8080/mcp}"
 # but the config file uses JUNTO_MEMORY_URL — bridge them here.
 JUNTO_SHARED_MEMORY_URL="${JUNTO_MEMORY_URL}"
 export JUNTO_AGENT JUNTO_PROJECT JUNTO_ROLE JUNTO_MEMORY_URL JUNTO_SHARED_MEMORY_URL JUNTO_CHANNEL_DELAY
-
-if [[ -z "${JUNTO_API_KEY:-}" ]]; then
-    echo "junto-launch: JUNTO_API_KEY is not set. Add it to ~/.junto/config or export it." >&2
-    exit 1
-fi
-
-# Identity sanity check — warn before launch if we couldn't read identity from CLAUDE.md
-if [[ ! -f "$CLAUDE_MD" ]]; then
-    echo "" >&2
-    echo "junto-launch: WARNING — no CLAUDE.md found in $(pwd)" >&2
-    echo "  Falling back to defaults: ${JUNTO_AGENT}@${JUNTO_PROJECT}" >&2
-    echo "  To configure this directory: ~/.junto/junto-setup.sh" >&2
-    echo "" >&2
-elif [[ "$AGENT_DETECTED" == "false" || "$PROJECT_DETECTED" == "false" ]]; then
-    echo "" >&2
-    echo "junto-launch: WARNING — CLAUDE.md found but identity markers are missing or unreadable" >&2
-    [[ "$AGENT_DETECTED" == "false" ]] && \
-        echo "  Agent : ${JUNTO_AGENT} (default — 'Your name is: \`X\`' not found in CLAUDE.md)" >&2
-    [[ "$PROJECT_DETECTED" == "false" ]] && \
-        echo "  Project: ${JUNTO_PROJECT} (default — '<!-- project=\"X\" -->' not found in CLAUDE.md)" >&2
-    echo "  To fix: re-run ~/.junto/junto-setup.sh in $(pwd)" >&2
-    echo "" >&2
-fi
 
 # Pre-flight: ensure channel settings are in remote-settings.json if using plugin
 if [[ "$PLUGIN" == "true" ]] && [[ -f "${HOME}/.claude/hooks/ensure-channel-settings.sh" ]]; then

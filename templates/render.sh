@@ -71,7 +71,7 @@ fi
 
 # Conditional plugin/agent session clarifier: shown when plugin is loaded.
 if [[ "$PLUGIN_PRESENT" == "true" ]]; then
-    PLUGIN_SESSION_BLOCK=$'## Plugin session vs agent session\n\nYour launcher loaded the junto-inbox plugin. The plugin has its OWN MCP client and binds with its own session id (returned by the plugin\'s `get_session_id` tool — for plugin diagnostic use). That is NOT your agent session. You must still call `memory_start_session` to register your agent identity, get learnings/active-work/guidelines, and obtain the session id you use for `mcp__junto__memory_*` tool calls. Skipping `memory_start_session` because "the plugin already bound" is wrong — the two sessions are distinct by design.\n'
+    PLUGIN_SESSION_BLOCK=$'## Plugin session vs agent session\n\nYour launcher loaded the junto-inbox plugin. The plugin binds with its own session id (returned by `get_session_id`). To avoid duplicate sessions, use the plugin\'s session id when it is ready — call `get_session_id()` BEFORE `memory_start_session`:\n\n- If `status: ready`: use the returned `session_id` for ALL `mcp__junto__memory_*` calls. Do NOT call `memory_start_session` — it would open a duplicate session. Call `memory_guidelines` instead to get server-managed rules for this session.\n- If `status: not_ready`: fall back to `memory_start_session` as normal.\n'
 else
     PLUGIN_SESSION_BLOCK=""
 fi

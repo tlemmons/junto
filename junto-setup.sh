@@ -125,17 +125,17 @@ JUNTO_API_KEY="${JUNTO_API_KEY}"
 # Shared memory server URL
 JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL}"
 
-# Agent identity
-JUNTO_AGENT="${JUNTO_AGENT}"
-
-# Default project
-JUNTO_PROJECT="${JUNTO_PROJECT}"
-
 # Role description
 JUNTO_ROLE="${JUNTO_ROLE}"
 
 # Last setup working directory
 PROJECT_DIR="${PROJECT_DIR}"
+
+# Agent name and project are set per-directory in CLAUDE.md (auto-detected by junto-launch.sh).
+# junto-launch.sh prompts for these on first launch in any new directory.
+# Uncomment below only to hard-override for ALL directories on this machine.
+# JUNTO_AGENT=""
+# JUNTO_PROJECT=""
 EOF
 chmod 600 "$CONFIG"
 echo "Config written to ${CONFIG}"
@@ -289,20 +289,10 @@ PYEOF
 CLAUDE_MD="${PROJECT_DIR}/CLAUDE.md"
 if [[ ! -f "$CLAUDE_MD" ]]; then
     cat > "$CLAUDE_MD" << EOF
-# Junto agent — ${JUNTO_AGENT}
+# ${JUNTO_AGENT}
 
 Your name is: \`${JUNTO_AGENT}\`
 
-This CLAUDE.md tells junto who you are and what project you're working on.
-Launch Claude from this directory to connect as ${JUNTO_AGENT}@${JUNTO_PROJECT}.
-For a different project, create a CLAUDE.md in that folder with the right project tag.
-
-# identityCheck
-On your very first response in this session, before any tool calls, output this exact line:
-"[junto] ${JUNTO_AGENT}@${JUNTO_PROJECT}"
-This confirms your identity loaded correctly. If the values look wrong, re-run ~/.junto/junto-setup.sh.
-
-<!-- junto identity markers — used by junto-launch.sh for auto-detection -->
 <!-- project="${JUNTO_PROJECT}" -->
 EOF
     echo "CLAUDE.md created at ${CLAUDE_MD}"
