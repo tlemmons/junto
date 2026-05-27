@@ -43,6 +43,7 @@ paraphrase. They override defaults including this file when they conflict.
 Then immediately:
 
 ```
+memory_get_spec(name="state:{{agent}}", project="{{project}}")
 memory_list_backlog(project="{{project}}", assigned_to="{{agent}}", status="open")
 memory_get_messages()
 ```
