@@ -83,7 +83,7 @@ JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL:-http://localhost:8080/mcp}"
 # Export so the junto-inbox plugin subprocess inherits the correct identity.
 # Without this, the plugin defaults to whatever JUNTO_AGENT was in the parent
 # shell, causing live_subscribers to register under the wrong name.
-export JUNTO_AGENT JUNTO_PROJECT JUNTO_ROLE JUNTO_MEMORY_URL
+export JUNTO_AGENT JUNTO_PROJECT JUNTO_ROLE JUNTO_MEMORY_URL JUNTO_CHANNEL_DELAY
 
 if [[ -z "${JUNTO_API_KEY:-}" ]]; then
     echo "junto-launch: JUNTO_API_KEY is not set. Add it to ~/.junto/config or export it." >&2
@@ -133,6 +133,12 @@ PROMPT_FILE=$(bash "${TEMPLATES}/render.sh" "${RENDER_ARGS[@]}")
 # Reduces compaction frequency significantly. Override by exporting this var before launch.
 export ANTHROPIC_DEFAULT_SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-sonnet-4-6[1m]}"
 
+# Export remote-settings path so Claude Code sees it before its own settings.json
+# env-block is processed. This ensures managed-remote-settings.json (which contains
+# channelsEnabled + allowedChannelPlugins) is loaded before the plugin MCP handshake,
+# eliminating the ~10s "channels not approved by org" window at startup.
+export CLAUDE_CODE_REMOTE_SETTINGS_PATH="${HOME}/.claude/managed-remote-settings.json"
+
 echo "junto: launching ${JUNTO_AGENT}@${JUNTO_PROJECT} → ${JUNTO_MEMORY_URL}" >&2
 [[ "$PLUGIN" == "true" ]] && echo "junto: push plugin enabled" >&2
 
@@ -140,7 +146,7 @@ echo "junto: launching ${JUNTO_AGENT}@${JUNTO_PROJECT} → ${JUNTO_MEMORY_URL}" 
 if [[ "$PLUGIN" == "true" ]]; then
     exec claude \
         --append-system-prompt-file "$PROMPT_FILE" \
-        --channels "plugin:junto-inbox@tlemmons-junto-inbox" \
+        --dangerously-load-development-channels "plugin:junto-inbox@tlemmons-junto-inbox" \
         ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}
 else
     exec claude \
