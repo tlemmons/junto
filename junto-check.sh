@@ -332,24 +332,47 @@ PYEOF
         _fail "~/.mcp.json not found — junto MCP server not configured"
         _info "Add: { \"mcpServers\": { \"junto\": { \"url\": \"http://spg-junto-central:8080/mcp\" } } }"
     else
-        local junto_url
-        junto_url=$(python3 -c "
+        local junto_url junto_type
+        read -r junto_url junto_type <<< "$(python3 -c "
 import json
 try:
     d = json.load(open('${mcp_json}'))
     for name, cfg in d.get('mcpServers', {}).items():
         url = cfg.get('url', '')
         if 'spg-junto-central' in url or '8080/mcp' in url:
-            print(url); exit(0)
-    print('')
-except: print('')
-" 2>/dev/null || echo "")
-        if [[ -n "$junto_url" ]]; then
-            _pass "~/.mcp.json has junto server (${junto_url})"
-        else
+            print(url, cfg.get('type', ''))
+            exit(0)
+    print('', '')
+except: print('', '')
+" 2>/dev/null || echo "")"
+        if [[ -z "$junto_url" ]]; then
             _fail "~/.mcp.json missing junto server entry for spg-junto-central:8080"
-            _info "Expected: { \"mcpServers\": { \"junto\": { \"url\": \"http://spg-junto-central:8080/mcp\" } } }"
+            _info "Expected: { \"mcpServers\": { \"junto\": { \"type\": \"http\", \"url\": \"http://spg-junto-central:8080/mcp\" } } }"
             _info "API key goes as api_key= in tool calls, NOT in HTTP headers"
+        else
+            _pass "~/.mcp.json has junto server (${junto_url})"
+            # Current CC versions require explicit "type": "http"
+            if [[ "$junto_type" != "http" ]]; then
+                _fail "~/.mcp.json junto entry missing \"type\": \"http\" — required by current Claude Code"
+                if _ask_fix "add \\\"type\\\": \\\"http\\\" to junto server entry in ~/.mcp.json"; then
+                    python3 - "${mcp_json}" <<'PYEOF'
+import json, sys
+path = sys.argv[1]
+with open(path) as f:
+    data = json.load(f)
+for name, cfg in data.get('mcpServers', {}).items():
+    url = cfg.get('url', '')
+    if 'spg-junto-central' in url or '8080/mcp' in url:
+        cfg['type'] = 'http'
+        break
+with open(path, 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+                    _fixed "added \"type\": \"http\" to junto entry in ~/.mcp.json"
+                fi
+            else
+                _pass "~/.mcp.json junto entry has \"type\": \"http\""
+            fi
         fi
     fi
 }
