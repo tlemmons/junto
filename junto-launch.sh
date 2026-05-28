@@ -71,28 +71,12 @@ _junto_read_claude_md() {
     fi
 }
 
-_junto_find_parent_project() {
-    local dir
-    dir="$(dirname "$(pwd)")"
-    while [[ "$dir" != "/" && "$dir" != "$HOME" ]]; do
-        if [[ -f "$dir/CLAUDE.md" ]]; then
-            local p
-            p=$(grep -m1 'project="[^"]*"' "$dir/CLAUDE.md" 2>/dev/null \
-                | sed 's/.*project="\([^"]*\)".*/\1/' || true)
-            if [[ -n "$p" ]]; then
-                echo "$p"
-                return
-            fi
-        fi
-        dir="$(dirname "$dir")"
-    done
-}
-
 _junto_init_directory() {
     local default_agent default_project input_agent input_project
+    # Project name defaults to folder basename (lowercase, alphanumeric+hyphen only).
+    # No parent-directory walk — project identity must be explicit in this directory.
     default_agent="$(basename "$(pwd)")"
-    default_project="$(_junto_find_parent_project)"
-    [[ -z "$default_project" ]] && default_project="$(basename "$(pwd)")"
+    default_project="$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]' | tr -dc 'a-z0-9-')"
 
     echo "" >&2
     echo "junto: No CLAUDE.md found in $(pwd)" >&2

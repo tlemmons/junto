@@ -451,6 +451,41 @@ check_junto_install() {
         fi
     )
 
+    # Live API key + project validation
+    if command -v python3 &>/dev/null && [[ -f "${JUNTO_DIR}/check-auth.py" ]]; then
+        (
+            set -a
+            # shellcheck disable=SC1090
+            source "${JUNTO_DIR}/config" 2>/dev/null || true
+            set +a
+            if [[ -n "${JUNTO_API_KEY:-}" && -n "${JUNTO_MEMORY_URL:-}" && -n "${JUNTO_PROJECT:-}" ]]; then
+                local auth_result
+                auth_result=$(python3 "${JUNTO_DIR}/check-auth.py" \
+                    "$JUNTO_MEMORY_URL" "$JUNTO_API_KEY" "$JUNTO_PROJECT" 2>/dev/null || echo "error")
+                case "$auth_result" in
+                    ok)
+                        _pass "API key valid for project '${JUNTO_PROJECT}'"
+                        ;;
+                    invalid_key)
+                        _fail "API key is invalid or not recognized by the server"
+                        _info "Check JUNTO_API_KEY in ~/.junto/config"
+                        ;;
+                    permission_denied)
+                        _fail "API key cannot access project '${JUNTO_PROJECT}' — wrong project name"
+                        _info "Your key is scoped to specific projects — contact Tom to confirm the right name"
+                        _info "Fix: update project marker in CLAUDE.md and JUNTO_PROJECT in ~/.junto/config"
+                        ;;
+                    unreachable)
+                        _warn "Server unreachable — skipping live auth check (check Tailscale)"
+                        ;;
+                    *)
+                        _warn "Auth check returned unexpected result: ${auth_result}"
+                        ;;
+                esac
+            fi
+        )
+    fi
+
     if [[ ! -x "${JUNTO_DIR}/junto-launch.sh" ]]; then
         _fail "junto-launch.sh is not executable"
         if _ask_fix "chmod +x ${JUNTO_DIR}/junto-launch.sh"; then
@@ -571,38 +606,8 @@ path = sys.argv[1]
 content = {
     "permissions": {
         "allow": [
-            "mcp__junto__memory_start_session",
-            "mcp__junto__memory_end_session",
-            "mcp__junto__memory_query",
-            "mcp__junto__memory_store",
-            "mcp__junto__memory_record_learning",
-            "mcp__junto__memory_get_spec",
-            "mcp__junto__memory_define_spec",
-            "mcp__junto__memory_guidelines",
-            "mcp__junto__memory_list_backlog",
-            "mcp__junto__memory_add_backlog_item",
-            "mcp__junto__memory_update_backlog_item",
-            "mcp__junto__memory_complete_backlog_item",
-            "mcp__junto__memory_get_messages",
-            "mcp__junto__memory_acknowledge_message",
-            "mcp__junto__memory_send_message",
-            "mcp__junto__memory_register_function",
-            "mcp__junto__memory_find_function",
-            "mcp__junto__memory_list_agents",
-            "mcp__junto__memory_get_by_id",
-            "mcp__junto__memory_change_status",
-            "mcp__junto__memory_list_specs",
-            "mcp__junto__memory_heartbeat",
-            "mcp__junto__memory_get_active_work",
-            "mcp__junto__memory_update_work",
-            "mcp__junto__memory_lock_files",
-            "mcp__junto__memory_unlock_files",
-            "mcp__junto__memory_get_locks",
-            "mcp__junto__memory_search_global",
-            "mcp__junto__memory_batch_backlog",
-            "mcp__plugin_junto-inbox_junto-inbox__get_session_id",
-            "mcp__plugin_junto-inbox_junto-inbox__send_message",
-            "mcp__plugin_junto-inbox_junto-inbox__junto_journal_list"
+            "mcp__junto__*",
+            "mcp__plugin_junto-inbox_junto-inbox__*"
         ]
     },
     "enableAllProjectMcpServers": True,

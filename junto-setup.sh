@@ -107,9 +107,57 @@ dir_basename="$(basename "$PROJECT_DIR")"
 default_project="$(echo "$dir_basename" | tr '[:upper:]' '[:lower:]' | tr -dc 'a-z0-9-')"
 existing_project="${JUNTO_PROJECT:-$default_project}"
 echo "Project identifier — this becomes your agent's context tag (e.g. juntoRoy@ispy)."
-echo "  Use your actual project name in lowercase: ispy, awareness, junto, etc."
-read -rp "Project name [${existing_project}]: " project_input
-JUNTO_PROJECT="${project_input:-$existing_project}"
+echo "  Use the exact project name Tom assigned to your API key (lowercase)."
+echo "  Common values: awareness, ispy, junto"
+
+while true; do
+    read -rp "Project name [${existing_project}]: " project_input
+    JUNTO_PROJECT="${project_input:-$existing_project}"
+
+    # Enforce lowercase
+    project_lower="$(echo "$JUNTO_PROJECT" | tr '[:upper:]' '[:lower:]' | tr '-' '_' | tr ' ' '_')"
+    if [[ "$JUNTO_PROJECT" != "$project_lower" ]]; then
+        echo "  → Lowercased to: ${project_lower}"
+        JUNTO_PROJECT="$project_lower"
+    fi
+
+    # Live validation — skip if server unreachable (don't block setup)
+    if command -v python3 &>/dev/null && [[ -f "${JUNTO_DIR}/check-auth.py" ]]; then
+        printf "  Validating key + project against server... "
+        auth_result=$(python3 "${JUNTO_DIR}/check-auth.py" "$JUNTO_MEMORY_URL" "$JUNTO_API_KEY" "$JUNTO_PROJECT" 2>/dev/null || echo "error")
+        case "$auth_result" in
+            ok)
+                echo "✓"
+                break
+                ;;
+            invalid_key)
+                echo "✗"
+                echo "  ERROR: API key is invalid or not recognized by the server."
+                echo "  Check your key and server URL, then re-run junto-setup.sh."
+                exit 1
+                ;;
+            permission_denied)
+                echo "✗"
+                echo "  ERROR: Your API key cannot access project '${JUNTO_PROJECT}'."
+                echo "  Contact Tom to confirm which project names your key is scoped to."
+                existing_project="$JUNTO_PROJECT"
+                ;;
+            unreachable)
+                echo "skipped (server unreachable)"
+                echo "  Warning: could not reach ${JUNTO_MEMORY_URL} — check Tailscale."
+                echo "  Proceeding anyway; junto-check will re-verify when connected."
+                break
+                ;;
+            *)
+                echo "skipped (unexpected result: ${auth_result})"
+                break
+                ;;
+        esac
+    else
+        break
+    fi
+done
+
 echo "  Agent context: ${JUNTO_AGENT}@${JUNTO_PROJECT}"
 echo ""
 
@@ -150,8 +198,8 @@ try:
     with open(path) as f: data = json.load(f)
 except Exception: data = {}
 data.setdefault("mcpServers", {})["junto"] = {
-    "url": url,
-    "headers": {"X-API-Key": key}
+    "type": "http",
+    "url": url
 }
 with open(path, "w") as f: json.dump(data, f, indent=2)
 print(f"MCP server 'junto' registered in {path}")
@@ -314,24 +362,8 @@ if [[ ! -f "$PROJECT_LOCAL_SETTINGS" ]]; then
 {
   "permissions": {
     "allow": [
-      "mcp__junto__memory_start_session",
-      "mcp__junto__memory_end_session",
-      "mcp__junto__memory_send_message",
-      "mcp__junto__memory_list_backlog",
-      "mcp__junto__memory_get_messages",
-      "mcp__junto__memory_query",
-      "mcp__junto__memory_record_learning",
-      "mcp__junto__memory_get_spec",
-      "mcp__junto__memory_define_spec",
-      "mcp__junto__memory_list_agents",
-      "mcp__junto__memory_acknowledge_message",
-      "mcp__junto__memory_update_work",
-      "mcp__junto__memory_register_function",
-      "mcp__plugin_junto-inbox_junto-inbox__send_message",
-      "mcp__plugin_junto-inbox_junto-inbox__get_session_id",
-      "mcp__plugin_junto-inbox_junto-inbox__junto_journal_list",
-      "mcp__plugin_junto-inbox_junto-inbox__junto_journal_replay",
-      "mcp__plugin_junto-inbox_junto-inbox__junto_journal_discard"
+      "mcp__junto__*",
+      "mcp__plugin_junto-inbox_junto-inbox__*"
     ]
   },
   "enableAllProjectMcpServers": true,
