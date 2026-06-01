@@ -1,0 +1,29 @@
+# Junto local configuration — copy to ~/.junto/config and edit.
+# junto-setup.sh creates this automatically; copy here manually for advanced setups.
+#
+# junto-launch.sh sources this file at startup. Environment variables already
+# set in the shell always win over values here.
+
+# Required: API key for the shared memory server.
+# Generate one via the junto admin UI or ask your junto admin.
+# For open-auth deployments (e.g. sage/home server): leave commented out.
+# JUNTO_API_KEY="smk_..."
+
+# Shared memory server URL. Choose one:
+#   Work/Tailscale:  http://spg-junto-central:8080/mcp
+#   Sage (home LAN): http://192.168.15.240:8080/mcp
+#   Docker local:    http://localhost:8080/mcp
+JUNTO_MEMORY_URL="http://spg-junto-central:8080/mcp"
+
+# Agent identity — normally auto-detected from CLAUDE.md in your launch dir.
+# Only set these as a hard override (e.g. a directory with no CLAUDE.md).
+# JUNTO_AGENT="juntoYourName"
+# JUNTO_PROJECT="your-project"
+
+# One-line role description shown in the system prompt.
+JUNTO_ROLE="General work agent"
+
+# Channel delivery delay in ms (default: 0 — no delay).
+# Set to 15000 if messages arrive in the mailbox but NOT as live channel push.
+# This defers readInboxAndForward to give CC time to finish channel approval.
+JUNTO_CHANNEL_DELAY=0
