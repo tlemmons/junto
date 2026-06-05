@@ -15,11 +15,13 @@
 #   JUNTO_API_KEY     MCP API key         (required)
 #   JUNTO_OVERLAY     Path to overlay .md (optional)
 #
-# Agent/project auto-detection from CLAUDE.md:
-#   If the current directory contains a CLAUDE.md with a "Your name is: `X`"
-#   line, JUNTO_AGENT is set from it. If it contains project="X" in a
-#   memory_start_session call, JUNTO_PROJECT is set from it.
-#   Explicit env vars always win over auto-detection.
+# Agent identity resolution (in priority order):
+#   1. Explicit env vars (JUNTO_AGENT / JUNTO_PROJECT) always win.
+#   2. .agent-name file in cwd: one-line file containing the agent name.
+#      Written by Claude Code on first startup; preferred over CLAUDE.md parsing.
+#   3. CLAUDE.md auto-detection: "Your name is: `X`" line for agent,
+#      project="X" comment for project.
+#   4. Fallback: basename of cwd (non-interactive) or interactive prompt.
 
 set -euo pipefail
 
@@ -46,9 +48,18 @@ for arg in "$@"; do
     fi
 done
 
-# Identity resolution — CLAUDE.md in cwd is the source of truth.
+# Identity resolution — .agent-name is preferred; CLAUDE.md is fallback.
 # Env vars (from config or shell) win if already set — hard override.
 CLAUDE_MD="$(pwd)/CLAUDE.md"
+AGENT_NAME_FILE="$(pwd)/.agent-name"
+
+_junto_read_agent_name_file() {
+    [[ -n "${JUNTO_AGENT:-}" ]] && return  # already set by env/config override
+    [[ ! -f "$AGENT_NAME_FILE" ]] && return
+    local a
+    a=$(head -1 "$AGENT_NAME_FILE" 2>/dev/null | tr -d '[:space:]')
+    [[ -n "$a" ]] && JUNTO_AGENT="$a"
+}
 
 _junto_read_claude_md() {
     if [[ -n "${JUNTO_AGENT:-}" && -n "${JUNTO_PROJECT:-}" ]]; then
@@ -102,6 +113,7 @@ EOF
     echo "" >&2
 }
 
+_junto_read_agent_name_file
 _junto_read_claude_md
 
 if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then

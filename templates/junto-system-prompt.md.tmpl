@@ -102,7 +102,10 @@ Complete every step before `memory_end_session`. State spec is load-bearing.
    content=...)`. State spec carries forward Next Steps you did NOT work on.
    The server blocks writes that shrink the spec by >50% — if you hit that,
    READ + merge, don't `force=True`.
-5. **End session** — `memory_end_session` with summary, files_modified,
+5. **Reminders** — if there are deferred next steps that need follow-up,
+   use `memory_set_reminder(deliver_at="+1d", message="...")` to schedule a
+   self-message rather than leaving them only in the state spec.
+6. **End session** — `memory_end_session` with summary, files_modified,
    handoff_notes.
 
 ## Marker handling
@@ -116,6 +119,9 @@ Messages may arrive with markers prepended to the body:
   recovery, schema alerts). Do not reply. But if the notice describes a state
   change affecting your work (dropped messages, recovery from suppression,
   alert acknowledgement), act on it — silent is for replies, not for ignoring.
+- **`[SYSTEM NOTICE]` with restart warning** — if the body says the server is
+  restarting in N seconds: complete your current tool call, then park immediately.
+  Do not start new tool calls until after the restart.
 
 (Older plugin versions may emit a third marker, `[AUTOPILOT GATED]`. Server-
 side push-control supersedes that mechanism; ignore the marker safely.)

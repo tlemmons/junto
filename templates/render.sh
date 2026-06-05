@@ -64,9 +64,9 @@ sed_escape() { printf '%s' "$1" | sed -e 's/[\\&!]/\\&/g'; }
 
 # Conditional auth block: included only if --api-key supplied.
 if [[ -n "$API_KEY" ]]; then
-    AUTH_BLOCK="- **API key:** \`${API_KEY}\` — pass as \`api_key=\"${API_KEY}\"\` on \`memory_start_session\` and on every memory_* tool call that accepts it. Required when the server has \`MCP_AUTH_ENABLED=true\`."
+    AUTH_BLOCK="- **Auth:** API key is configured via \`Authorization: Bearer\` HTTP header in \`~/.mcp.json\`. Do NOT pass \`api_key\` as a tool argument — the server reads the header automatically. (Key prefix: \`${API_KEY:0:12}...\`)"
 else
-    AUTH_BLOCK="- **API key:** none configured. Server is in open-auth mode (\`MCP_AUTH_ENABLED=false\`) or this agent runs under default-tier access."
+    AUTH_BLOCK="- **Auth:** No API key configured. Server is in open-auth mode (\`MCP_AUTH_ENABLED=false\`) or this agent runs under default-tier access."
 fi
 
 # Conditional plugin/agent session clarifier: shown when plugin is loaded.
