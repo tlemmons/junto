@@ -643,6 +643,71 @@ If they hit issues:
 
 ---
 
+---
+
+## PART 7: Getting help and escalation
+
+### The support model
+
+Junto deployments are designed to be self-sufficient after initial setup. The
+guide you're reading captures everything we learned the hard way at SPG. Most
+issues — server won't start, agent can't connect, plugin not delivering messages
+— are covered in Part 4. Run `junto-check.sh` first; it catches the majority of
+common problems automatically.
+
+When you hit something the guide doesn't cover, use this escalation path:
+
+```
+Your team's agent / your own investigation
+        ↓  (not resolved)
+GitHub issue on LVT's junto fork  →  Tom + juntoTom triage
+        ↓  (code change needed or novel infrastructure issue)
+tlemmons/junto public repo or sage
+```
+
+Open an issue on `lvt/junto` (your fork), not on `tlemmons/junto` directly.
+Tom reviews LVT issues and decides what gets escalated upstream. This keeps
+LVT-specific context in LVT's repo and ensures security visibility on anything
+that comes back in as a fix.
+
+**What belongs in an issue:**
+- What you were trying to do
+- The exact error or symptom
+- Output of `junto-check.sh` if applicable
+- Your platform (Windows/WSL2/macOS/Linux) and Claude Code version
+
+### Initial setup: pair session
+
+For your first deployment, plan a session where your team's admin and Tom work
+through the setup together — ideally with one of your developers present too.
+The guide covers the known gotchas, but every environment has surprises. A few
+hours of paired setup is worth more than days of async back-and-forth.
+
+During that session, Tom can connect directly to your junto server to verify it
+from the inside — querying your memory server, checking that agents are checking
+in correctly, confirming push delivery is working. This uses a temporary API key
+you provision for the session and revoke when done. Your admin stays in control
+of access the entire time.
+
+What you need ready for that session:
+- Server up and health check passing (`curl http://<server>:8080/health`)
+- A temporary owner-tier key created for Tom:
+  ```
+  memory_admin(action="create_key", name="tom-setup-assist", role="owner")
+  ```
+  (Revoke it when the session ends: `memory_admin(action="revoke_key", name="tom-setup-assist")`)
+- Your server URL accessible from Tom's machine (via Tailscale, VPN, or temporary exposure)
+- At least one developer who will be running agents present for the session
+
+### Each deployment improves the next
+
+Every novel issue a new team hits and resolves goes back into this guide and the
+`lvt/junto` issue tracker. By the third or fourth team deployment, the guide
+handles nearly everything and setup sessions are much shorter. You're not just
+setting up your team — you're making it easier for every team after you.
+
+---
+
 ## Repos
 
 | Repo | Purpose |
