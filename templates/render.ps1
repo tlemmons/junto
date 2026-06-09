@@ -76,16 +76,20 @@ if (-not (Test-Path $base)) {
 $pluginStr = if ($PluginPresent) { "true" } else { "false" }
 
 if ($ApiKey) {
-    $authBlock = "- **API key:** ``$ApiKey`` — pass as ``api_key=`"$ApiKey`"`` on ``memory_start_session`` and on every memory_* tool call that accepts it. Required when the server has ``MCP_AUTH_ENABLED=true``."
+    $keyPrefix = $ApiKey.Substring(0, [Math]::Min(12, $ApiKey.Length))
+    $authBlock = "- **Auth:** API key is configured via ``Authorization: Bearer`` HTTP header in ``~/.mcp.json``. Do NOT pass ``api_key`` as a tool argument -- the server reads the header automatically. (Key prefix: ``${keyPrefix}...``)"
 } else {
-    $authBlock = "- **API key:** none configured. Server is in open-auth mode (``MCP_AUTH_ENABLED=false``) or this agent runs under default-tier access."
+    $authBlock = "- **Auth:** No API key configured. Server is in open-auth mode (``MCP_AUTH_ENABLED=false``) or this agent runs under default-tier access."
 }
 
 if ($PluginPresent) {
     $pluginSessionBlock = @"
 ## Plugin session vs agent session
 
-Your launcher loaded the junto-inbox plugin. The plugin has its OWN MCP client and binds with its own session id (returned by the plugin's ``get_session_id`` tool — for plugin diagnostic use). That is NOT your agent session. You must still call ``memory_start_session`` to register your agent identity, get learnings/active-work/guidelines, and obtain the session id you use for ``mcp__junto__memory_*`` tool calls. Skipping ``memory_start_session`` because "the plugin already bound" is wrong — the two sessions are distinct by design.
+Your launcher loaded the junto-inbox plugin. The plugin binds with its own session id (returned by ``get_session_id``). To avoid duplicate sessions, use the plugin's session id when it is ready -- call ``get_session_id()`` BEFORE ``memory_start_session``:
+
+- If ``status: ready``: use the returned ``session_id`` for ALL ``mcp__junto__memory_*`` calls. Do NOT call ``memory_start_session`` -- it would open a duplicate session. Call ``memory_guidelines`` instead to get server-managed rules for this session.
+- If ``status: not_ready``: fall back to ``memory_start_session`` as normal.
 "@
 } else {
     $pluginSessionBlock = ""
