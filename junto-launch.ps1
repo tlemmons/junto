@@ -58,6 +58,17 @@ $cwd           = (Get-Location).Path
 $claudeMdPath  = Join-Path $cwd 'CLAUDE.md'
 $agentNameFile = Join-Path $cwd '.agent-name'
 
+function Find-ClaudeMd {
+    # Walk up from cwd toward $HOME to find the nearest CLAUDE.md.
+    if (Test-Path $claudeMdPath) { return }   # already in cwd
+    $dir = Split-Path -Parent $cwd
+    while ($dir -ne $HOME -and $dir -ne (Split-Path -Parent $dir)) {
+        $candidate = Join-Path $dir 'CLAUDE.md'
+        if (Test-Path $candidate) { $script:claudeMdPath = $candidate; return }
+        $dir = Split-Path -Parent $dir
+    }
+}
+
 function Read-AgentNameFile {
     if ($env:JUNTO_AGENT) { return }
     if (-not (Test-Path $agentNameFile)) { return }
@@ -75,31 +86,43 @@ function Read-ClaudeMd {
     if (-not $env:JUNTO_PROJECT) {
         if ($content -match 'project="([^"]+)"') { $env:JUNTO_PROJECT = $Matches[1] }
     }
+    if (-not $env:JUNTO_COMPONENT) {
+        if ($content -match 'component="([^"]+)"') { $env:JUNTO_COMPONENT = $Matches[1] }
+    }
 }
 
 function Initialize-Directory {
     $defaultAgent   = Split-Path -Leaf $cwd
     $defaultProject = ($defaultAgent -replace '[^a-z0-9-]', '').ToLower()
     Write-Host ""
-    Write-Host "junto: No CLAUDE.md found in $cwd" -ForegroundColor Yellow
+    Write-Host "junto: No CLAUDE.md found in $cwd or any parent directory." -ForegroundColor Yellow
     Write-Host "junto: Enter identity for this directory (permanent -- saved to CLAUDE.md)." -ForegroundColor Yellow
     Write-Host ""
-    $inputAgent   = (Read-Host "  Agent name   [$defaultAgent]").Trim()
-    $inputProject = (Read-Host "  Project name [$defaultProject]").Trim()
-    $env:JUNTO_AGENT   = if ($inputAgent)   { $inputAgent }   else { $defaultAgent }
-    $env:JUNTO_PROJECT = if ($inputProject) { $inputProject } else { $defaultProject }
-    Set-Content -Path $claudeMdPath -Encoding utf8 -Value @"
-# $($env:JUNTO_AGENT)
+    $inputAgent     = (Read-Host "  Agent name             [$defaultAgent]").Trim()
+    $inputProject   = (Read-Host "  Project name           [$defaultProject]").Trim()
+    $inputComponent = (Read-Host "  Component (optional, Enter to skip)    ").Trim()
+    $env:JUNTO_AGENT     = if ($inputAgent)     { $inputAgent }     else { $defaultAgent }
+    $env:JUNTO_PROJECT   = if ($inputProject)   { $inputProject }   else { $defaultProject }
+    $env:JUNTO_COMPONENT = $inputComponent
 
-Your name is: ``$($env:JUNTO_AGENT)``
+    $lines = @(
+        "# $($env:JUNTO_AGENT)",
+        "",
+        "Your name is: ``$($env:JUNTO_AGENT)``",
+        "",
+        "<!-- project=`"$($env:JUNTO_PROJECT)`" -->"
+    )
+    if ($env:JUNTO_COMPONENT) { $lines += "<!-- component=`"$($env:JUNTO_COMPONENT)`" -->" }
+    Set-Content -Path $claudeMdPath -Value ($lines -join "`n") -Encoding utf8
 
-<!-- project="$($env:JUNTO_PROJECT)" -->
-"@
+    $ctx = "$($env:JUNTO_AGENT)@$($env:JUNTO_PROJECT)"
+    if ($env:JUNTO_COMPONENT) { $ctx += ":$($env:JUNTO_COMPONENT)" }
     Write-Host ""
-    Write-Host "junto: Created CLAUDE.md -- $($env:JUNTO_AGENT)@$($env:JUNTO_PROJECT)" -ForegroundColor Green
+    Write-Host "junto: Created CLAUDE.md -- $ctx" -ForegroundColor Green
     Write-Host ""
 }
 
+Find-ClaudeMd
 Read-AgentNameFile
 Read-ClaudeMd
 
@@ -170,7 +193,9 @@ if (Test-Path $managedSettings -and -not $env:CLAUDE_CODE_REMOTE_SETTINGS_PATH) 
 
 # -- Launch ----------------------------------------------------------------------
 
-Write-Host "junto: launching $($env:JUNTO_AGENT)@$($env:JUNTO_PROJECT) -> $($env:JUNTO_MEMORY_URL)" -ForegroundColor Cyan
+$_ctx = "$($env:JUNTO_AGENT)@$($env:JUNTO_PROJECT)"
+if ($env:JUNTO_COMPONENT) { $_ctx += ":$($env:JUNTO_COMPONENT)" }
+Write-Host "junto: launching $_ctx -> $($env:JUNTO_MEMORY_URL)" -ForegroundColor Cyan
 if (-not $NoPlugin) { Write-Host "junto: push plugin enabled" -ForegroundColor Cyan }
 
 $allClaudeArgs = @('--append-system-prompt-file', $promptFile)

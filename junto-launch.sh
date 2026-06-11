@@ -53,6 +53,23 @@ done
 CLAUDE_MD="$(pwd)/CLAUDE.md"
 AGENT_NAME_FILE="$(pwd)/.agent-name"
 
+# Walk up from cwd toward $HOME to find the nearest CLAUDE.md.
+# Stops at $HOME (does not read ~/.claude/CLAUDE.md or above).
+# Sets CLAUDE_MD to the found path; leaves it as cwd default if nothing found.
+_junto_find_claude_md() {
+    [[ -f "$CLAUDE_MD" ]] && return 0   # already in cwd — no walk needed
+    local dir
+    dir="$(pwd)"
+    while [[ "$dir" != "$HOME" && "$dir" != "/" ]]; do
+        dir="$(dirname "$dir")"
+        if [[ -f "$dir/CLAUDE.md" ]]; then
+            CLAUDE_MD="$dir/CLAUDE.md"
+            return 0
+        fi
+    done
+    return 1
+}
+
 _junto_read_agent_name_file() {
     [[ -n "${JUNTO_AGENT:-}" ]] && return  # already set by env/config override
     [[ ! -f "$AGENT_NAME_FILE" ]] && return
@@ -80,39 +97,51 @@ _junto_read_claude_md() {
             | sed 's/.*project="\([^"]*\)".*/\1/' || true)
         [[ -n "$p" ]] && JUNTO_PROJECT="$p"
     fi
+    if [[ -z "${JUNTO_COMPONENT:-}" ]]; then
+        local c
+        c=$(grep -m1 'component="[^"]*"' "$CLAUDE_MD" 2>/dev/null \
+            | sed 's/.*component="\([^"]*\)".*/\1/' || true)
+        [[ -n "$c" ]] && JUNTO_COMPONENT="$c"
+    fi
 }
 
 _junto_init_directory() {
-    local default_agent default_project input_agent input_project
-    # Project name defaults to folder basename (lowercase, alphanumeric+hyphen only).
-    # No parent-directory walk — project identity must be explicit in this directory.
+    local default_agent default_project input_agent input_project input_component
     default_agent="$(basename "$(pwd)")"
     default_project="$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]' | tr -dc 'a-z0-9-')"
 
     echo "" >&2
-    echo "junto: No CLAUDE.md found in $(pwd)" >&2
+    echo "junto: No CLAUDE.md found in $(pwd) or any parent directory." >&2
     echo "junto: Enter identity for this directory (permanent — saved to CLAUDE.md)." >&2
     echo "" >&2
-    printf "  Agent name   [%s]: " "$default_agent" >/dev/tty
+    printf "  Agent name        [%s]: " "$default_agent" >/dev/tty
     read -r input_agent </dev/tty
-    printf "  Project name [%s]: " "$default_project" >/dev/tty
+    printf "  Project name      [%s]: " "$default_project" >/dev/tty
     read -r input_project </dev/tty
+    printf "  Component/subproject (optional, press Enter to skip): " >/dev/tty
+    read -r input_component </dev/tty
 
     JUNTO_AGENT="${input_agent:-$default_agent}"
     JUNTO_PROJECT="${input_project:-$default_project}"
+    JUNTO_COMPONENT="${input_component:-}"
 
-    cat > "$CLAUDE_MD" << EOF
-# ${JUNTO_AGENT}
+    {
+        echo "# ${JUNTO_AGENT}"
+        echo ""
+        echo "Your name is: \`${JUNTO_AGENT}\`"
+        echo ""
+        echo "<!-- project=\"${JUNTO_PROJECT}\" -->"
+        [[ -n "${JUNTO_COMPONENT}" ]] && echo "<!-- component=\"${JUNTO_COMPONENT}\" -->"
+    } > "$CLAUDE_MD"
 
-Your name is: \`${JUNTO_AGENT}\`
-
-<!-- project="${JUNTO_PROJECT}" -->
-EOF
     echo "" >&2
-    echo "junto: Created CLAUDE.md — ${JUNTO_AGENT}@${JUNTO_PROJECT}" >&2
+    local ctx="${JUNTO_AGENT}@${JUNTO_PROJECT}"
+    [[ -n "${JUNTO_COMPONENT}" ]] && ctx="${ctx}:${JUNTO_COMPONENT}"
+    echo "junto: Created CLAUDE.md — ${ctx}" >&2
     echo "" >&2
 }
 
+_junto_find_claude_md
 _junto_read_agent_name_file
 _junto_read_claude_md
 
@@ -157,7 +186,7 @@ fi
 # The plugin reads JUNTO_SHARED_MEMORY_URL (via envVar('SHARED_MEMORY_URL')),
 # but the config file uses JUNTO_MEMORY_URL — bridge them here.
 JUNTO_SHARED_MEMORY_URL="${JUNTO_MEMORY_URL}"
-export JUNTO_AGENT JUNTO_PROJECT JUNTO_ROLE JUNTO_MEMORY_URL JUNTO_SHARED_MEMORY_URL JUNTO_CHANNEL_DELAY
+export JUNTO_AGENT JUNTO_PROJECT JUNTO_ROLE JUNTO_MEMORY_URL JUNTO_SHARED_MEMORY_URL JUNTO_CHANNEL_DELAY JUNTO_COMPONENT
 
 # Pre-flight: ensure channel settings are in remote-settings.json if using plugin
 if [[ "$PLUGIN" == "true" ]] && [[ -f "${HOME}/.claude/hooks/ensure-channel-settings.sh" ]]; then
@@ -190,7 +219,9 @@ export ANTHROPIC_DEFAULT_SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-
 # eliminating the ~10s "channels not approved by org" window at startup.
 export CLAUDE_CODE_REMOTE_SETTINGS_PATH="${HOME}/.claude/managed-remote-settings.json"
 
-echo "junto: launching ${JUNTO_AGENT}@${JUNTO_PROJECT} → ${JUNTO_MEMORY_URL}" >&2
+_ctx="${JUNTO_AGENT}@${JUNTO_PROJECT}"
+[[ -n "${JUNTO_COMPONENT:-}" ]] && _ctx="${_ctx}:${JUNTO_COMPONENT}"
+echo "junto: launching ${_ctx} → ${JUNTO_MEMORY_URL}" >&2
 [[ "$PLUGIN" == "true" ]] && echo "junto: push plugin enabled" >&2
 
 # Launch Claude
