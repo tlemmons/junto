@@ -52,6 +52,7 @@ done
 # Env vars (from config or shell) win if already set — hard override.
 CLAUDE_MD="$(pwd)/CLAUDE.md"
 AGENT_NAME_FILE="$(pwd)/.agent-name"
+PROJECT_NAME_FILE="$(pwd)/.project-name"
 
 # Walk up from cwd toward $HOME to find the nearest CLAUDE.md.
 # Stops at $HOME (does not read ~/.claude/CLAUDE.md or above).
@@ -76,6 +77,15 @@ _junto_read_agent_name_file() {
     local a
     a=$(head -1 "$AGENT_NAME_FILE" 2>/dev/null | tr -d '[:space:]')
     [[ -n "$a" ]] && JUNTO_AGENT="$a"
+    return 0
+}
+
+_junto_read_project_name_file() {
+    [[ -n "${JUNTO_PROJECT:-}" ]] && return 0
+    [[ ! -f "$PROJECT_NAME_FILE" ]] && return 0
+    local p
+    p=$(head -1 "$PROJECT_NAME_FILE" 2>/dev/null | tr -d '[:space:]')
+    [[ -n "$p" ]] && JUNTO_PROJECT="$p"
     return 0
 }
 
@@ -145,6 +155,7 @@ _junto_init_directory() {
 
 _junto_find_claude_md
 _junto_read_agent_name_file
+_junto_read_project_name_file
 _junto_read_claude_md
 
 if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
