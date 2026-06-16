@@ -67,15 +67,16 @@ _junto_find_claude_md() {
             return 0
         fi
     done
-    return 1
+    return 0  # no CLAUDE.md found — caller checks CLAUDE_MD variable, not return code
 }
 
 _junto_read_agent_name_file() {
-    [[ -n "${JUNTO_AGENT:-}" ]] && return  # already set by env/config override
-    [[ ! -f "$AGENT_NAME_FILE" ]] && return
+    [[ -n "${JUNTO_AGENT:-}" ]] && return 0  # already set by env/config override
+    [[ ! -f "$AGENT_NAME_FILE" ]] && return 0
     local a
     a=$(head -1 "$AGENT_NAME_FILE" 2>/dev/null | tr -d '[:space:]')
     [[ -n "$a" ]] && JUNTO_AGENT="$a"
+    return 0
 }
 
 _junto_read_claude_md() {
@@ -103,6 +104,7 @@ _junto_read_claude_md() {
             | sed 's/.*component="\([^"]*\)".*/\1/' || true)
         [[ -n "$c" ]] && JUNTO_COMPONENT="$c"
     fi
+    return 0
 }
 
 _junto_init_directory() {
