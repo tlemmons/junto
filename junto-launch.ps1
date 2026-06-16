@@ -54,9 +54,10 @@ if (Test-Path $ConfigPath) {
 
 # -- Identity resolution ---------------------------------------------------------
 
-$cwd           = (Get-Location).Path
-$claudeMdPath  = Join-Path $cwd 'CLAUDE.md'
-$agentNameFile = Join-Path $cwd '.agent-name'
+$cwd             = (Get-Location).Path
+$claudeMdPath    = Join-Path $cwd 'CLAUDE.md'
+$agentNameFile   = Join-Path $cwd '.agent-name'
+$projectNameFile = Join-Path $cwd '.project-name'
 
 function Find-ClaudeMd {
     # Walk up from cwd toward $HOME to find the nearest CLAUDE.md.
@@ -74,6 +75,13 @@ function Read-AgentNameFile {
     if (-not (Test-Path $agentNameFile)) { return }
     $a = (Get-Content $agentNameFile -First 1 -ErrorAction SilentlyContinue).Trim()
     if ($a) { $env:JUNTO_AGENT = $a }
+}
+
+function Read-ProjectNameFile {
+    if ($env:JUNTO_PROJECT) { return }
+    if (-not (Test-Path $projectNameFile)) { return }
+    $p = (Get-Content $projectNameFile -First 1 -ErrorAction SilentlyContinue).Trim()
+    if ($p) { $env:JUNTO_PROJECT = $p }
 }
 
 function Read-ClaudeMd {
@@ -124,6 +132,7 @@ function Initialize-Directory {
 
 Find-ClaudeMd
 Read-AgentNameFile
+Read-ProjectNameFile
 Read-ClaudeMd
 
 if (-not $env:JUNTO_AGENT -or -not $env:JUNTO_PROJECT) {
