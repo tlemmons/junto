@@ -2,7 +2,7 @@
 
 You are in workspace setup mode. The directory `{{cwd}}` has no junto identity configured yet.
 
-**Your entire job this session is to configure the workspace identity, write the files, and exit. Do not start any other work.**
+**Begin the setup wizard immediately when this session starts — do not wait for the user to type anything. Start with Step 1 and proceed through all steps, prompting the user for input where needed. Do not start any other work.**
 
 ### Steps — complete all of them in order
 
