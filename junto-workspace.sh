@@ -288,6 +288,23 @@ if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
         JUNTO_PROJECT="junto"
         JUNTO_ROLE="Workspace setup assistant"
         JUNTO_OVERLAY="${JUNTO_DIR}/templates/overlays/workspace-setup.md"
+        # Create settings.local.json before launching so the setup session has
+        # access to the full junto MCP tool suite (needed for memory_list_projects).
+        mkdir -p "$(pwd)/.claude"
+        if [[ ! -f "$(pwd)/.claude/settings.local.json" ]]; then
+            cat > "$(pwd)/.claude/settings.local.json" << 'EOF'
+{
+  "permissions": {
+    "allow": [
+      "mcp__junto__*",
+      "mcp__plugin_junto-inbox_junto-inbox__*"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["junto"]
+}
+EOF
+        fi
         echo "junto: no workspace identity found — launching setup assistant..." >&2
         echo "junto: answer the questions, then run junto-workspace.sh again to start your session." >&2
     else

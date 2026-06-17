@@ -284,6 +284,18 @@ if (-not $env:JUNTO_AGENT -or -not $env:JUNTO_PROJECT) {
         $env:JUNTO_PROJECT = 'junto'
         $env:JUNTO_ROLE    = 'Workspace setup assistant'
         $env:JUNTO_OVERLAY = Join-Path $JuntoDir 'templates\overlays\workspace-setup.md'
+        # Create settings.local.json before launching so the setup session has
+        # access to the full junto MCP tool suite (needed for memory_list_projects).
+        $projectClaudeDir = Join-Path $cwd '.claude'
+        if (-not (Test-Path $projectClaudeDir)) { New-Item -ItemType Directory -Path $projectClaudeDir -Force | Out-Null }
+        $localSettings = Join-Path $projectClaudeDir 'settings.local.json'
+        if (-not (Test-Path $localSettings)) {
+            [PSCustomObject]@{
+                permissions                = [PSCustomObject]@{ allow = @('mcp__junto__*', 'mcp__plugin_junto-inbox_junto-inbox__*') }
+                enableAllProjectMcpServers = $true
+                enabledMcpjsonServers      = @('junto')
+            } | ConvertTo-Json -Depth 5 | Set-Content -Path $localSettings -Encoding utf8
+        }
         Write-Host "junto: no workspace identity found -- launching setup assistant..." -ForegroundColor Cyan
         Write-Host "junto: answer the questions, then run junto-workspace.ps1 again to start your session." -ForegroundColor Cyan
     } else {
