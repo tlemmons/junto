@@ -85,7 +85,7 @@ And your agent's first response includes a line like:
 [junto] juntoYourName@yourproject
 ```
 
-If you don't see these, something in the setup isn't right — check that Tailscale is connected and your `junto` alias points to `~/.junto/junto-launch.sh`.
+If you don't see these, something in the setup isn't right — check that Tailscale is connected and your `junto` alias points to `~/.junto/junto-workspace.sh`.
 
 ---
 
