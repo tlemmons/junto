@@ -314,15 +314,29 @@ Your only job: configure the junto identity for \`${_SETUP_CWD}\` and exit.
 
 ## Wizard steps
 
-**Step 1 — List projects**
-Call \`memory_list_projects\` (session_id: start a minimal session with memory_start_session using project="junto", claude_instance="ws-setup"). If the tools are unavailable, skip the list and ask the user to type a project name.
+**Step 1 — Load MCP session**
+Call \`memory_start_session\` with project="junto", claude_instance="ws-setup". Save the returned session_id — you need it for all subsequent memory calls.
 
-**Step 2 — Ask three questions** (conversationally, one at a time):
-1. **Agent name** — suggest \`junto{FirstName}\` based on system user. Default to \`juntoTom\` for user \`tlemmons\`.
-2. **Project** — show the numbered list if available, plus an option to enter a new name. Enforce lowercase.
-3. **Component** (optional) — sub-area like \`cameraSync\`. Enter to skip.
+**Step 2 — Agent name**
+Use the \`AskUserQuestion\` tool with:
+- question: "What should your junto agent name be?"
+- header: "Agent name"
+- options: [{ label: "juntoTom", description: "Suggested (junto + your system username tlemmons)" }, { label: "Other", description: "Enter a custom name" }]
 
-**Step 3 — Write these files to \`${_SETUP_CWD}\`:**
+If they pick "Other", ask them to type it in a follow-up message. Enforce no spaces; junto{FirstName} convention.
+
+**Step 3 — Project**
+Call \`memory_list_projects\` using the session_id from Step 1. Present the results as a numbered list in plain text (there can be many — too many for AskUserQuestion). Add a final option "(other — type it)". Wait for their selection or typed name. Enforce lowercase.
+
+**Step 4 — Component (optional)**
+Call \`memory_query\` with query="{chosen_project} components" to find known sub-areas. If results exist, show them as a numbered list plus "none". If no results, use \`AskUserQuestion\` with:
+- question: "Add a component/subproject tag?"
+- header: "Component"
+- options: [{ label: "Skip", description: "No component — just the project" }, { label: "Enter one", description: "Type a sub-area name like cameraSync or billing" }]
+
+If they choose to enter one, ask in a follow-up message.
+
+**Step 5 — Write these files to \`${_SETUP_CWD}\`:**
 
 \`CLAUDE.md\`:
 \`\`\`
@@ -332,17 +346,18 @@ Your name is: \`{agent_name}\`
 
 <!-- project="{project_name}" -->
 \`\`\`
-Add \`<!-- component="{component}" -->\` if they gave one.
+Add \`<!-- component="{component}" -->\` on the next line if they specified one.
 
-\`.agent-name\` — one line, just the agent name, no newline.
-\`.project-name\` — one line, just the project name, no newline.
+\`.agent-name\` — one line, agent name only, no trailing newline.
+\`.project-name\` — one line, project name only, no trailing newline.
 
-**Step 4 — Tell the user:**
+**Step 6 — Confirm and instruct restart**
+Tell the user:
 > Workspace configured as \`{agent_name}@{project_name}\`. Run \`junto-workspace.sh\` again to start your session.
 
-**Step 5 — End.** Call memory_end_session with a one-line summary. No learnings or functions to register.
+**Step 7 — End.** Call memory_end_session with a one-line summary.
 
-## Credentials (if needed for direct MCP calls)
+## Credentials
 - Server: ${JUNTO_MEMORY_URL}
 - API key: ${JUNTO_API_KEY}
 SETUP_EOF
