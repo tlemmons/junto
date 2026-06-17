@@ -248,6 +248,7 @@ _ws_read_local_files() {
         local p; p=$(head -1 "$PROJECT_NAME_FILE" 2>/dev/null | tr -d '[:space:]')
         [[ -n "$p" && -z "${JUNTO_PROJECT:-}" ]] && JUNTO_PROJECT="$p"
     fi
+    return 0
 }
 
 _ws_read_claude_md() {
@@ -268,6 +269,7 @@ _ws_read_claude_md() {
             | sed 's/.*component="\([^"]*\)".*/\1/' || true)
         [[ -n "$c" ]] && JUNTO_COMPONENT="$c"
     fi
+    return 0
 }
 
 _ws_init_project() {
