@@ -409,7 +409,7 @@ if (-not $env:ANTHROPIC_DEFAULT_SONNET_MODEL) {
 
 # Point Claude Code at our stable remote-settings file
 $managedSettings = Join-Path $HOME '.claude\managed-remote-settings.json'
-if (Test-Path $managedSettings -and -not $env:CLAUDE_CODE_REMOTE_SETTINGS_PATH) {
+if ((Test-Path $managedSettings) -and (-not $env:CLAUDE_CODE_REMOTE_SETTINGS_PATH)) {
     $env:CLAUDE_CODE_REMOTE_SETTINGS_PATH = $managedSettings
 }
 
