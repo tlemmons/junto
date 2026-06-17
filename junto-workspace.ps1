@@ -177,6 +177,17 @@ if ($changed) {
     }
     $settings.env | Add-Member -NotePropertyName 'CLAUDE_CODE_REMOTE_SETTINGS_PATH' -NotePropertyValue $managedPath -Force
 
+    # Register junto HTTP server globally so it connects in every CC session,
+    # including the bootstrap setup session (which has no settings.local.json yet).
+    if (-not $settings.PSObject.Properties['mcpServers']) {
+        $settings | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{}) -Force
+    }
+    $settings.mcpServers | Add-Member -NotePropertyName 'junto' -NotePropertyValue ([PSCustomObject]@{
+        type    = 'http'
+        url     = $juntoUrl
+        headers = [PSCustomObject]@{ Authorization = "Bearer $juntoKey" }
+    }) -Force
+
     $hookCmd   = "powershell.exe -NoProfile -NonInteractive -File `"$hookScript`""
     $hookEntry = [PSCustomObject]@{ type = 'command'; command = $hookCmd }
     if (-not $settings.PSObject.Properties['hooks']) {

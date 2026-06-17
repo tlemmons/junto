@@ -163,9 +163,9 @@ BASH_EOF
     # Update ~/.claude/settings.json
     local settings="${HOME}/.claude/settings.json"
     local managed_path="$managed"
-    python3 - "$settings" "$managed_path" << 'PYEOF'
+    python3 - "$settings" "$managed_path" "$junto_url" "$junto_key" << 'PYEOF'
 import json, sys
-settings_path, managed_path = sys.argv[1], sys.argv[2]
+settings_path, managed_path, junto_url, junto_key = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 try:
     with open(settings_path) as f: data = json.load(f)
 except Exception: data = {}
@@ -182,6 +182,14 @@ data["channelsEnabled"] = True
 if "model" not in data:
     data["model"] = "opusplan"
 data.setdefault("env", {})["CLAUDE_CODE_REMOTE_SETTINGS_PATH"] = managed_path
+
+# Register junto HTTP server globally so it connects in every CC session,
+# including the bootstrap setup session (which has no settings.local.json yet).
+data.setdefault("mcpServers", {})["junto"] = {
+    "type": "http",
+    "url": junto_url,
+    "headers": {"Authorization": f"Bearer {junto_key}"}
+}
 
 hook_cmd = "bash ~/.claude/hooks/ensure-channel-settings.sh"
 hook_entry = {"type": "command", "command": hook_cmd}
