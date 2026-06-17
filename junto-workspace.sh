@@ -318,12 +318,7 @@ Your only job: configure the junto identity for \`${_SETUP_CWD}\` and exit.
 Call \`memory_start_session\` with project="junto", claude_instance="ws-setup". Save the returned session_id — you need it for all subsequent memory calls.
 
 **Step 2 — Agent name**
-Use the \`AskUserQuestion\` tool with:
-- question: "What should your junto agent name be?"
-- header: "Agent name"
-- options: [{ label: "juntoTom", description: "Suggested (junto + your system username tlemmons)" }, { label: "Other", description: "Enter a custom name" }]
-
-If they pick "Other", ask them to type it in a follow-up message. Enforce no spaces; junto{FirstName} convention.
+Ask: "What should your agent name be?" — free-form, no convention required. Just enforce no spaces or special characters. Do not suggest a format or push back on any valid name.
 
 **Step 3 — Project**
 Call \`memory_list_projects\` using the session_id from Step 1. Present the results as a numbered list in plain text (there can be many — too many for AskUserQuestion). Add a final option "(other — type it)". Wait for their selection or typed name. Enforce lowercase.
