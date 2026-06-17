@@ -37,9 +37,9 @@ printf '\033]0;[{{agent}}] {{project}}\007'
 
 **If the junto-inbox plugin is loaded**, call `get_session_id()` first:
 - `status: ready` → use the returned `session_id` for ALL `mcp__junto__memory_*` calls. Skip `memory_start_session` (would duplicate the session). Call `memory_guidelines` immediately instead to get server-managed rules.
-- `status: not_ready` → fall back to `memory_start_session` below.
+- `status: not_ready` → **call `get_session_id()` once more immediately** before giving up. The plugin binds within milliseconds of startup; a single retry usually succeeds. If the second call returns `ready`, use that session_id. If it returns `not_ready` again, fall back to `memory_start_session` below.
 
-**If plugin is not loaded or returned not_ready**, call:
+**If plugin is not loaded or returned not_ready twice**, call:
 
 ```
 memory_start_session(
