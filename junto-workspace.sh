@@ -52,12 +52,12 @@ _ws_machine_setup() {
     local junto_key junto_url
     local default_url="http://spg-junto-central:8080/mcp"
 
-    # API key
-    printf "Junto API key (starts with smk_): " >/dev/tty
+    # API key — leave BLANK for an open-auth server (e.g. home/sage: MCP_AUTH_ENABLED
+    # off, or LAN soft-auth). A blank key omits the Authorization header, so the server
+    # soft-auths the LAN/local session to agent tier. A non-empty key must be VALID —
+    # the server hard-rejects an unknown/revoked key (it does not fall back to keyless).
+    printf "Junto API key (starts with smk_; leave BLANK for a keyless/open-auth server): " >/dev/tty
     read -rs junto_key </dev/tty; echo "" >/dev/tty
-    if [[ -z "$junto_key" ]]; then
-        echo "ERROR: API key cannot be empty." >&2; exit 1
-    fi
 
     # Server URL
     printf "Server URL [%s]: " "$default_url" >/dev/tty
@@ -82,7 +82,10 @@ EOF
     python3 - "${HOME}/.claude.json" "${HOME}/.mcp.json" "$junto_url" "$junto_key" << 'PYEOF'
 import json, sys
 claude_path, mcp_path, url, key = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-entry = {"type": "http", "url": url, "headers": {"Authorization": f"Bearer {key}"}}
+# Open-auth/keyless: omit the Authorization header entirely when no key is set.
+entry = {"type": "http", "url": url}
+if key:
+    entry["headers"] = {"Authorization": f"Bearer {key}"}
 for path in (claude_path, mcp_path):
     try:
         with open(path) as f: data = json.load(f)
@@ -378,10 +381,13 @@ fi
 JUNTO_ROLE="${JUNTO_ROLE:-General work agent}"
 JUNTO_MEMORY_URL="${JUNTO_MEMORY_URL:-http://your-junto-server:8080/mcp}"
 JUNTO_COMPONENT="${JUNTO_COMPONENT:-}"
+JUNTO_API_KEY="${JUNTO_API_KEY:-}"
 
-if [[ -z "${JUNTO_API_KEY:-}" ]]; then
-    echo "junto-workspace: JUNTO_API_KEY is not set. Check ~/.junto/config." >&2
-    exit 1
+# Keyless is VALID for open-auth servers (home/sage). A non-empty key is sent as a
+# Bearer header; an empty key omits it and the server soft-auths the LAN/local session
+# to agent tier. Do NOT exit on an unset key — that would break keyless deployments.
+if [[ -z "$JUNTO_API_KEY" ]]; then
+    echo "junto: no API key set — connecting keyless (open-auth / LAN soft-auth)." >&2
 fi
 
 JUNTO_SHARED_MEMORY_URL="${JUNTO_MEMORY_URL}"
