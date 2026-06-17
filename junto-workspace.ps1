@@ -267,69 +267,25 @@ function Read-ClaudeMd {
     }
 }
 
-function Initialize-Project {
-    $defaultAgent   = Split-Path -Leaf $cwd
-    $defaultProject = ($defaultAgent -replace '[^a-z0-9-]', '').ToLower()
-
-    Write-Host ""
-    Write-Host "=== junto: workspace setup ===" -ForegroundColor Cyan
-    Write-Host "Directory: $cwd"
-    Write-Host ""
-
-    $inputAgent     = (Read-Host "  Agent name    [$defaultAgent]").Trim()
-    $inputProject   = (Read-Host "  Project name  [$defaultProject]").Trim()
-    $inputComponent = (Read-Host "  Component/subproject (optional, Enter to skip)").Trim()
-
-    $env:JUNTO_AGENT     = if ($inputAgent)     { $inputAgent }     else { $defaultAgent }
-    $env:JUNTO_PROJECT   = if ($inputProject)   { ($inputProject -replace '[^a-z0-9_-]', '').ToLower() } else { $defaultProject }
-    $env:JUNTO_COMPONENT = $inputComponent
-
-    if ([string]::IsNullOrEmpty($env:JUNTO_AGENT))   { Write-Error "Agent name cannot be empty.";   exit 1 }
-    if ([string]::IsNullOrEmpty($env:JUNTO_PROJECT))  { Write-Error "Project name cannot be empty."; exit 1 }
-
-    # Write CLAUDE.md
-    $lines = @(
-        "# $($env:JUNTO_AGENT)",
-        "",
-        "Your name is: ``$($env:JUNTO_AGENT)``",
-        "",
-        "<!-- project=`"$($env:JUNTO_PROJECT)`" -->"
-    )
-    if ($env:JUNTO_COMPONENT) { $lines += "<!-- component=`"$($env:JUNTO_COMPONENT)`" -->" }
-    Set-Content -Path (Join-Path $cwd 'CLAUDE.md') -Value ($lines -join "`n") -Encoding utf8
-
-    # Write .agent-name and .project-name
-    Set-Content -Path $agentNameFile   -Value $env:JUNTO_AGENT   -Encoding utf8 -NoNewline
-    Set-Content -Path $projectNameFile -Value $env:JUNTO_PROJECT -Encoding utf8 -NoNewline
-
-    # Create .claude/settings.local.json
-    $projectClaudeDir = Join-Path $cwd '.claude'
-    if (-not (Test-Path $projectClaudeDir)) { New-Item -ItemType Directory -Path $projectClaudeDir -Force | Out-Null }
-    $localSettings = Join-Path $projectClaudeDir 'settings.local.json'
-    if (-not (Test-Path $localSettings)) {
-        [PSCustomObject]@{
-            permissions                = [PSCustomObject]@{ allow = @('mcp__junto__*', 'mcp__plugin_junto-inbox_junto-inbox__*') }
-            enableAllProjectMcpServers = $true
-            enabledMcpjsonServers      = @('junto')
-        } | ConvertTo-Json -Depth 5 | Set-Content -Path $localSettings -Encoding utf8
-        Write-Host "junto: created .claude/settings.local.json" -ForegroundColor Green
-    }
-
-    $ctx = "$($env:JUNTO_AGENT)@$($env:JUNTO_PROJECT)"
-    if ($env:JUNTO_COMPONENT) { $ctx += ":$($env:JUNTO_COMPONENT)" }
-    Write-Host ""
-    Write-Host "junto: workspace initialized -- $ctx" -ForegroundColor Green
-    Write-Host ""
-}
-
 Find-ClaudeMd
 Read-AgentNameFile
 Read-ProjectNameFile
 Read-ClaudeMd
 
+$SetupMode = $false
 if (-not $env:JUNTO_AGENT -or -not $env:JUNTO_PROJECT) {
     if ($Host.Name -eq 'ConsoleHost' -and -not [System.Console]::IsOutputRedirected) {
-        Initialize-Project
+        # No identity found — launch CC as a setup assistant.
+        # CC will call memory_list_projects, ask the user for identity, write the
+        # files, and instruct a restart. The user runs junto-workspace.ps1 again
+        # and the second launch proceeds normally with the written identity.
+        $SetupMode = $true
+        $env:JUNTO_AGENT   = 'ws-setup'
+        $env:JUNTO_PROJECT = 'junto'
+        $env:JUNTO_ROLE    = 'Workspace setup assistant'
+        $env:JUNTO_OVERLAY = Join-Path $JuntoDir 'templates\overlays\workspace-setup.md'
+        Write-Host "junto: no workspace identity found -- launching setup assistant..." -ForegroundColor Cyan
+        Write-Host "junto: answer the questions, then run junto-workspace.ps1 again to start your session." -ForegroundColor Cyan
     } else {
         if (-not $env:JUNTO_AGENT)   { $env:JUNTO_AGENT   = Split-Path -Leaf $cwd }
         if (-not $env:JUNTO_PROJECT) { $env:JUNTO_PROJECT = Split-Path -Leaf $cwd }
@@ -338,9 +294,12 @@ if (-not $env:JUNTO_AGENT -or -not $env:JUNTO_PROJECT) {
     }
 }
 
-# Idempotently write .agent-name and .project-name (fast-path for future launches)
-if (-not (Test-Path $agentNameFile))   { Set-Content -Path $agentNameFile   -Value $env:JUNTO_AGENT   -Encoding utf8 -NoNewline }
-if (-not (Test-Path $projectNameFile)) { Set-Content -Path $projectNameFile -Value $env:JUNTO_PROJECT -Encoding utf8 -NoNewline }
+# Write fast-path files only on normal launches.
+# In setup mode CC writes them; writing ws-setup/junto here would be wrong.
+if (-not $SetupMode) {
+    if (-not (Test-Path $agentNameFile))   { Set-Content -Path $agentNameFile   -Value $env:JUNTO_AGENT   -Encoding utf8 -NoNewline }
+    if (-not (Test-Path $projectNameFile)) { Set-Content -Path $projectNameFile -Value $env:JUNTO_PROJECT -Encoding utf8 -NoNewline }
+}
 
 # ── Phase 3: Launch ────────────────────────────────────────────────────────────
 

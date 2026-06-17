@@ -272,84 +272,24 @@ _ws_read_claude_md() {
     return 0
 }
 
-_ws_init_project() {
-    local default_agent default_project
-    default_agent="${JUNTO_AGENT:-$(basename "$(pwd)")}"
-    default_project="$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]' | tr -dc 'a-z0-9-')"
-
-    echo "" >&2
-    echo "=== junto: workspace setup ===" >&2
-    echo "Directory: $(pwd)" >&2
-    echo "" >&2
-
-    printf "  Agent name     [%s]: " "$default_agent" >/dev/tty
-    read -r inp_agent </dev/tty
-    JUNTO_AGENT="${inp_agent:-$default_agent}"
-
-    printf "  Project name   [%s]: " "$default_project" >/dev/tty
-    read -r inp_project </dev/tty
-    inp_project="${inp_project:-$default_project}"
-    JUNTO_PROJECT="$(echo "$inp_project" | tr '[:upper:]' '[:lower:]' | tr -dc 'a-z0-9_-')"
-
-    printf "  Component/subproject (optional, Enter to skip): " >/dev/tty
-    read -r inp_component </dev/tty
-    JUNTO_COMPONENT="${inp_component:-}"
-
-    if [[ -z "$JUNTO_AGENT" ]]; then
-        echo "ERROR: agent name cannot be empty." >&2; exit 1
-    fi
-    if [[ -z "$JUNTO_PROJECT" ]]; then
-        echo "ERROR: project name cannot be empty." >&2; exit 1
-    fi
-
-    # Write CLAUDE.md
-    local target_claude_md; target_claude_md="$(pwd)/CLAUDE.md"
-    {
-        echo "# ${JUNTO_AGENT}"
-        echo ""
-        echo "Your name is: \`${JUNTO_AGENT}\`"
-        echo ""
-        echo "<!-- project=\"${JUNTO_PROJECT}\" -->"
-        [[ -n "$JUNTO_COMPONENT" ]] && echo "<!-- component=\"${JUNTO_COMPONENT}\" -->"
-    } > "$target_claude_md"
-
-    # Write .agent-name and .project-name
-    echo "$JUNTO_AGENT" > "$AGENT_NAME_FILE"
-    echo "$JUNTO_PROJECT" > "$PROJECT_NAME_FILE"
-
-    # Create .claude/settings.local.json
-    local settings_dir; settings_dir="$(pwd)/.claude"
-    mkdir -p "$settings_dir"
-    if [[ ! -f "${settings_dir}/settings.local.json" ]]; then
-        cat > "${settings_dir}/settings.local.json" << 'EOF'
-{
-  "permissions": {
-    "allow": [
-      "mcp__junto__*",
-      "mcp__plugin_junto-inbox_junto-inbox__*"
-    ]
-  },
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["junto"]
-}
-EOF
-        echo "junto: created .claude/settings.local.json" >&2
-    fi
-
-    local ctx="${JUNTO_AGENT}@${JUNTO_PROJECT}"
-    [[ -n "$JUNTO_COMPONENT" ]] && ctx="${ctx}:${JUNTO_COMPONENT}"
-    echo "" >&2
-    echo "junto: workspace initialized — ${ctx}" >&2
-    echo "" >&2
-}
-
 _ws_find_claude_md
 _ws_read_local_files
 _ws_read_claude_md
 
+SETUP_MODE=false
 if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
     if [[ -t 0 && -t 1 ]]; then
-        _ws_init_project
+        # No identity found — launch CC as a setup assistant.
+        # CC will call memory_list_projects, ask the user for identity, write the
+        # files, and instruct a restart. The user runs junto-workspace.sh again
+        # and the second launch proceeds normally with the written identity.
+        SETUP_MODE=true
+        JUNTO_AGENT="ws-setup"
+        JUNTO_PROJECT="junto"
+        JUNTO_ROLE="Workspace setup assistant"
+        JUNTO_OVERLAY="${JUNTO_DIR}/templates/overlays/workspace-setup.md"
+        echo "junto: no workspace identity found — launching setup assistant..." >&2
+        echo "junto: answer the questions, then run junto-workspace.sh again to start your session." >&2
     else
         JUNTO_AGENT="${JUNTO_AGENT:-$(basename "$(pwd)")}"
         JUNTO_PROJECT="${JUNTO_PROJECT:-$(basename "$(pwd)")}"
@@ -358,12 +298,11 @@ if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
     fi
 fi
 
-# Idempotently write .agent-name and .project-name (fast-path for future launches)
-if [[ ! -f "$AGENT_NAME_FILE" ]]; then
-    echo "${JUNTO_AGENT}" > "$AGENT_NAME_FILE"
-fi
-if [[ ! -f "$PROJECT_NAME_FILE" ]]; then
-    echo "${JUNTO_PROJECT}" > "$PROJECT_NAME_FILE"
+# Write fast-path files only on normal launches.
+# In setup mode CC writes them; writing ws-setup/junto here would be wrong.
+if [[ "$SETUP_MODE" == "false" ]]; then
+    if [[ ! -f "$AGENT_NAME_FILE" ]]; then echo "${JUNTO_AGENT}" > "$AGENT_NAME_FILE"; fi
+    if [[ ! -f "$PROJECT_NAME_FILE" ]]; then echo "${JUNTO_PROJECT}" > "$PROJECT_NAME_FILE"; fi
 fi
 
 # ── Phase 3: Launch ───────────────────────────────────────────────────────────
