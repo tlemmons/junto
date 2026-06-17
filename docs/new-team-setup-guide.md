@@ -306,16 +306,25 @@ curl http://<server-hostname>:8080/health
 # Expected: {"status":"healthy",...}
 ```
 
-**Clone the junto launcher:**
+**Clone the junto launcher** into `$HOME\.junto`:
 ```powershell
 git clone https://github.com/tlemmons/junto.git "$HOME\.junto"
 ```
+> **If you have ever run the junto-inbox plugin on this machine**, `$HOME\.junto`
+> already exists (it holds the plugin's `journal\` directory) and the clone above
+> fails with *"already exists and is not empty."* Initialize in place instead:
+> ```powershell
+> git -C "$HOME\.junto" init
+> git -C "$HOME\.junto" remote add origin https://github.com/tlemmons/junto.git
+> git -C "$HOME\.junto" fetch origin
+> git -C "$HOME\.junto" checkout -f main
+> ```
 
-**Run setup:**
+**Run setup** (first run launches the setup wizard; rerun to start your session):
 ```powershell
-& "$HOME\.junto\junto-setup.ps1"
+& "$HOME\.junto\junto-workspace.ps1"
 ```
-Answer the same prompts as the bash version (name, API key, server URL, project dir, project name).
+Answer the prompts (name, API key, server URL, project). **Leave the API key BLANK for a keyless / open-auth server** (e.g. the home/sage server, which runs `MCP_AUTH_ENABLED=false`) — only paste an `smk_...` key if your admin issued one. A non-empty *wrong* key is rejected by the server, so blank is the correct choice when there is no key.
 
 **Add the `junto` alias to your PowerShell profile:**
 ```powershell
@@ -325,7 +334,7 @@ Test-Path $PROFILE
 New-Item -Path $PROFILE -ItemType File -Force
 
 # Add the alias:
-Add-Content $PROFILE "`nSet-Alias junto `"$HOME\.junto\junto-launch.ps1`""
+Add-Content $PROFILE "`nSet-Alias junto `"$HOME\.junto\junto-workspace.ps1`""
 
 # Reload:
 . $PROFILE
@@ -370,16 +379,25 @@ curl -s http://<server-hostname>:8080/health
 ```bash
 git clone https://github.com/tlemmons/junto.git ~/.junto
 ```
+> **If you have run the junto-inbox plugin before**, `~/.junto` already exists (it
+> holds the plugin's `journal/`) and the clone fails with *"already exists and is
+> not empty."* Initialize in place instead:
+> ```bash
+> git -C ~/.junto init
+> git -C ~/.junto remote add origin https://github.com/tlemmons/junto.git
+> git -C ~/.junto fetch origin
+> git -C ~/.junto checkout -f main
+> ```
 
 ### 2.5 Run setup
 
 ```bash
-~/.junto/junto-setup.sh
+~/.junto/junto-workspace.sh
 ```
 
 The wizard prompts for:
 - **Your first name** → becomes `junto{Name}` (e.g. `juntoSarah`)
-- **API key** → paste the `smk_...` key the admin gave you
+- **API key** → paste the `smk_...` key the admin gave you, or **leave BLANK for a keyless / open-auth server** (e.g. the home/sage server with `MCP_AUTH_ENABLED=false`). A non-empty *wrong* key is rejected by the server, so blank is correct when there is no key.
 - **Server URL** → `http://<server>:8080/mcp`
 - **Project directory** → path to the codebase you'll work on (e.g. `~/code/my-project`)
 - **Project name** → the project identifier the admin assigned (e.g. `acme`, lowercase)
@@ -395,7 +413,7 @@ Setup automatically:
 
 **bash / zsh (macOS, Linux, WSL2):**
 ```bash
-echo 'alias junto="~/.junto/junto-launch.sh"' >> ~/.bashrc
+echo 'alias junto="~/.junto/junto-workspace.sh"' >> ~/.bashrc
 # or ~/.zshrc on macOS / zsh installs
 source ~/.bashrc
 ```
