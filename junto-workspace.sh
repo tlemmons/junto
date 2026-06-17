@@ -221,6 +221,10 @@ else
     exit 1
 fi
 
+# Keyless is valid (open-auth server). Default the key now — BEFORE any reference
+# (the setup-mode wizard prompt embeds it) — so set -u doesn't trip on an unset key.
+JUNTO_API_KEY="${JUNTO_API_KEY:-}"
+
 # ── Phase 2: Project identity ─────────────────────────────────────────────────
 
 CLAUDE_MD="$(pwd)/CLAUDE.md"
