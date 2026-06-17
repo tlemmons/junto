@@ -1,2 +1,7 @@
 # Local config contains API keys — never commit
 config
+
+# junto-inbox plugin runtime journal (homedir/.junto/journal — schema.ts journalDirPath).
+# When ~/.junto is the launcher clone, the plugin writes journals into this tree;
+# they are per-machine runtime state, never committed.
+journal/
