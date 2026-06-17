@@ -1,4 +1,4 @@
-#requires -version 5
+﻿#requires -version 5
 <#
 .SYNOPSIS
     Render junto-system-prompt.md.tmpl with variable substitution.

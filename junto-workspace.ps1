@@ -234,7 +234,7 @@ $projectNameFile = Join-Path $cwd '.project-name'
 function Find-ClaudeMd {
     if (Test-Path $claudeMdPath) { return }
     $dir = Split-Path -Parent $cwd
-    while ($dir -ne $HOME -and $dir -ne (Split-Path -Parent $dir)) {
+    while ($dir -and $dir -ne $HOME -and $dir -ne (Split-Path -Parent $dir)) {
         $candidate = Join-Path $dir 'CLAUDE.md'
         if (Test-Path $candidate) { $script:claudeMdPath = $candidate; return }
         $dir = Split-Path -Parent $dir
