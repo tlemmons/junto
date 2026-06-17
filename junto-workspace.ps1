@@ -77,20 +77,23 @@ JUNTO_ROLE="General work agent"
     [System.IO.File]::SetAttributes($ConfigPath, [System.IO.FileAttributes]::Normal)
     Write-Host "junto: config written to $ConfigPath" -ForegroundColor Green
 
-    # Register MCP server in ~/.mcp.json (with Bearer auth)
-    $mcpPath = Join-Path $HOME '.mcp.json'
-    try   { $mcpData = Get-Content -Raw $mcpPath -ErrorAction Stop | ConvertFrom-Json }
-    catch { $mcpData = [PSCustomObject]@{} }
-    if (-not $mcpData.PSObject.Properties['mcpServers']) {
-        $mcpData | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{}) -Force
-    }
-    $mcpData.mcpServers | Add-Member -NotePropertyName 'junto' -NotePropertyValue ([PSCustomObject]@{
+    # Register MCP server in ~/.claude.json (user-level, globally available in all sessions)
+    # Also write ~/.mcp.json as a fallback.
+    $mcpEntry = [PSCustomObject]@{
         type    = 'http'
         url     = $juntoUrl
         headers = [PSCustomObject]@{ Authorization = "Bearer $juntoKey" }
-    }) -Force
-    $mcpData | ConvertTo-Json -Depth 10 | Set-Content -Path $mcpPath -Encoding utf8
-    Write-Host "junto: MCP server registered in $mcpPath" -ForegroundColor Green
+    }
+    foreach ($mcpPath in @((Join-Path $HOME '.claude.json'), (Join-Path $HOME '.mcp.json'))) {
+        try   { $mcpData = Get-Content -Raw $mcpPath -ErrorAction Stop | ConvertFrom-Json }
+        catch { $mcpData = [PSCustomObject]@{} }
+        if (-not $mcpData.PSObject.Properties['mcpServers']) {
+            $mcpData | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{}) -Force
+        }
+        $mcpData.mcpServers | Add-Member -NotePropertyName 'junto' -NotePropertyValue $mcpEntry -Force
+        $mcpData | ConvertTo-Json -Depth 10 | Set-Content -Path $mcpPath -Encoding utf8
+    }
+    Write-Host "junto: MCP server registered in ~/.claude.json and ~/.mcp.json" -ForegroundColor Green
 
     # Create managed-remote-settings.json
     $claudeDir   = Join-Path $HOME '.claude'
@@ -176,17 +179,6 @@ if ($changed) {
         $settings | Add-Member -NotePropertyName 'env' -NotePropertyValue ([PSCustomObject]@{}) -Force
     }
     $settings.env | Add-Member -NotePropertyName 'CLAUDE_CODE_REMOTE_SETTINGS_PATH' -NotePropertyValue $managedPath -Force
-
-    # Register junto HTTP server globally so it connects in every CC session,
-    # including the bootstrap setup session (which has no settings.local.json yet).
-    if (-not $settings.PSObject.Properties['mcpServers']) {
-        $settings | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue ([PSCustomObject]@{}) -Force
-    }
-    $settings.mcpServers | Add-Member -NotePropertyName 'junto' -NotePropertyValue ([PSCustomObject]@{
-        type    = 'http'
-        url     = $juntoUrl
-        headers = [PSCustomObject]@{ Authorization = "Bearer $juntoKey" }
-    }) -Force
 
     $hookCmd   = "powershell.exe -NoProfile -NonInteractive -File `"$hookScript`""
     $hookEntry = [PSCustomObject]@{ type = 'command'; command = $hookCmd }

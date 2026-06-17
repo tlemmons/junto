@@ -77,21 +77,19 @@ EOF
     chmod 600 "$CONFIG"
     echo "junto: config written to ${CONFIG}" >&2
 
-    # Register MCP server in ~/.mcp.json (with Bearer auth)
-    local mcp_json="${HOME}/.mcp.json"
-    python3 - "$mcp_json" "$junto_url" "$junto_key" << 'PYEOF'
+    # Register MCP server in ~/.claude.json (user-level, globally available in all sessions)
+    # Also write ~/.mcp.json as a fallback for tools that read it.
+    python3 - "${HOME}/.claude.json" "${HOME}/.mcp.json" "$junto_url" "$junto_key" << 'PYEOF'
 import json, sys
-path, url, key = sys.argv[1], sys.argv[2], sys.argv[3]
-try:
-    with open(path) as f: data = json.load(f)
-except Exception: data = {}
-data.setdefault("mcpServers", {})["junto"] = {
-    "type": "http",
-    "url": url,
-    "headers": {"Authorization": f"Bearer {key}"}
-}
-with open(path, "w") as f: json.dump(data, f, indent=2)
-print(f"junto: MCP server registered in {path}")
+claude_path, mcp_path, url, key = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+entry = {"type": "http", "url": url, "headers": {"Authorization": f"Bearer {key}"}}
+for path in (claude_path, mcp_path):
+    try:
+        with open(path) as f: data = json.load(f)
+    except Exception: data = {}
+    data.setdefault("mcpServers", {})["junto"] = entry
+    with open(path, "w") as f: json.dump(data, f, indent=2)
+print(f"junto: MCP server registered in ~/.claude.json and ~/.mcp.json")
 PYEOF
 
     # Create managed-remote-settings.json (keeps channelsEnabled safe from org-policy resets)
@@ -163,9 +161,9 @@ BASH_EOF
     # Update ~/.claude/settings.json
     local settings="${HOME}/.claude/settings.json"
     local managed_path="$managed"
-    python3 - "$settings" "$managed_path" "$junto_url" "$junto_key" << 'PYEOF'
+    python3 - "$settings" "$managed_path" << 'PYEOF'
 import json, sys
-settings_path, managed_path, junto_url, junto_key = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+settings_path, managed_path = sys.argv[1], sys.argv[2]
 try:
     with open(settings_path) as f: data = json.load(f)
 except Exception: data = {}
@@ -182,14 +180,6 @@ data["channelsEnabled"] = True
 if "model" not in data:
     data["model"] = "opusplan"
 data.setdefault("env", {})["CLAUDE_CODE_REMOTE_SETTINGS_PATH"] = managed_path
-
-# Register junto HTTP server globally so it connects in every CC session,
-# including the bootstrap setup session (which has no settings.local.json yet).
-data.setdefault("mcpServers", {})["junto"] = {
-    "type": "http",
-    "url": junto_url,
-    "headers": {"Authorization": f"Bearer {junto_key}"}
-}
 
 hook_cmd = "bash ~/.claude/hooks/ensure-channel-settings.sh"
 hook_entry = {"type": "command", "command": hook_cmd}
