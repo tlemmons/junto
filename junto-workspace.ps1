@@ -55,9 +55,8 @@ function Invoke-MachineSetup {
     Write-Host "No config found at $ConfigPath." -ForegroundColor Yellow
     Write-Host ""
 
-    # API key
-    $juntoKey = (Read-Host "Junto API key (starts with smk_)").Trim()
-    if ([string]::IsNullOrEmpty($juntoKey)) { Write-Error "API key cannot be empty."; exit 1 }
+    # API key (blank = keyless / open-auth server)
+    $juntoKey = (Read-Host "Junto API key (starts with smk_; leave BLANK for a keyless/open-auth server)").Trim()
 
     # Server URL
     $defaultUrl = 'http://spg-junto-central:8080/mcp'
@@ -80,9 +79,11 @@ JUNTO_ROLE="General work agent"
     # Register MCP server in ~/.claude.json (user-level, globally available in all sessions)
     # Also write ~/.mcp.json as a fallback.
     $mcpEntry = [PSCustomObject]@{
-        type    = 'http'
-        url     = $juntoUrl
-        headers = [PSCustomObject]@{ Authorization = "Bearer $juntoKey" }
+        type = 'http'
+        url  = $juntoUrl
+    }
+    if ($juntoKey) {
+        $mcpEntry | Add-Member -NotePropertyName 'headers' -NotePropertyValue ([PSCustomObject]@{ Authorization = "Bearer $juntoKey" }) -Force
     }
     foreach ($mcpPath in @((Join-Path $HOME '.claude.json'), (Join-Path $HOME '.mcp.json'))) {
         try   { $mcpData = Get-Content -Raw $mcpPath -ErrorAction Stop | ConvertFrom-Json }
@@ -366,8 +367,7 @@ if (-not $env:JUNTO_MEMORY_URL) { $env:JUNTO_MEMORY_URL = 'http://your-junto-ser
 if (-not $env:JUNTO_COMPONENT)  { $env:JUNTO_COMPONENT  = '' }
 
 if (-not $env:JUNTO_API_KEY) {
-    Write-Error "junto-workspace: JUNTO_API_KEY is not set. Check $ConfigPath."
-    exit 1
+    Write-Host "junto: no API key set - connecting keyless (open-auth server)..." -ForegroundColor Yellow
 }
 
 # Bridge env var name: plugin reads JUNTO_SHARED_MEMORY_URL; config uses JUNTO_MEMORY_URL.
