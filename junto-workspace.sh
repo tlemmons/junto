@@ -295,9 +295,7 @@ if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
         JUNTO_AGENT="ws-setup"
         JUNTO_PROJECT="junto"
         JUNTO_ROLE="Workspace setup assistant"
-        JUNTO_OVERLAY="${JUNTO_DIR}/templates/overlays/workspace-setup.md"
-        # Create settings.local.json before launching so the setup session has
-        # access to the full junto MCP tool suite (needed for memory_list_projects).
+        # Create settings.local.json before launching so junto MCP tools are available.
         mkdir -p "$(pwd)/.claude"
         if [[ ! -f "$(pwd)/.claude/settings.local.json" ]]; then
             cat > "$(pwd)/.claude/settings.local.json" << 'EOF'
@@ -313,6 +311,51 @@ if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
 }
 EOF
         fi
+        # Write a minimal focused prompt — skip the full junto template so CC goes
+        # straight to the wizard without running the normal memory startup sequence.
+        _SETUP_CWD="$(pwd)"
+        _SETUP_PROMPT_FILE="/tmp/junto-ws-setup-prompt.md"
+        cat > "$_SETUP_PROMPT_FILE" << SETUP_EOF
+# Workspace Setup Wizard
+
+**Start the wizard immediately when this session opens. Do not run any startup sequence or memory protocol.**
+
+Your only job: configure the junto identity for \`${_SETUP_CWD}\` and exit.
+
+## Wizard steps
+
+**Step 1 — List projects**
+Call \`memory_list_projects\` (session_id: start a minimal session with memory_start_session using project="junto", claude_instance="ws-setup"). If the tools are unavailable, skip the list and ask the user to type a project name.
+
+**Step 2 — Ask three questions** (conversationally, one at a time):
+1. **Agent name** — suggest \`junto{FirstName}\` based on system user. Default to \`juntoTom\` for user \`tlemmons\`.
+2. **Project** — show the numbered list if available, plus an option to enter a new name. Enforce lowercase.
+3. **Component** (optional) — sub-area like \`cameraSync\`. Enter to skip.
+
+**Step 3 — Write these files to \`${_SETUP_CWD}\`:**
+
+\`CLAUDE.md\`:
+\`\`\`
+# {agent_name}
+
+Your name is: \`{agent_name}\`
+
+<!-- project="{project_name}" -->
+\`\`\`
+Add \`<!-- component="{component}" -->\` if they gave one.
+
+\`.agent-name\` — one line, just the agent name, no newline.
+\`.project-name\` — one line, just the project name, no newline.
+
+**Step 4 — Tell the user:**
+> Workspace configured as \`{agent_name}@{project_name}\`. Run \`junto-workspace.sh\` again to start your session.
+
+**Step 5 — End.** Call memory_end_session with a one-line summary. No learnings or functions to register.
+
+## Credentials (if needed for direct MCP calls)
+- Server: ${JUNTO_MEMORY_URL}
+- API key: ${JUNTO_API_KEY}
+SETUP_EOF
         echo "junto: no workspace identity found — launching setup assistant..." >&2
         echo "junto: answer the questions, then run junto-workspace.sh again to start your session." >&2
     else
@@ -349,20 +392,23 @@ if [[ "$PLUGIN" == "true" ]] && [[ -f "${HOME}/.claude/hooks/ensure-channel-sett
     bash "${HOME}/.claude/hooks/ensure-channel-settings.sh"
 fi
 
-# Render system prompt
-RENDER_ARGS=(
-    --agent "$JUNTO_AGENT"
-    --project "$JUNTO_PROJECT"
-    --role "$JUNTO_ROLE"
-    --shared-memory-url "$JUNTO_MEMORY_URL"
-    --cwd "$(pwd)"
-    --api-key "$JUNTO_API_KEY"
-    --out "/tmp/junto-${JUNTO_AGENT}-${JUNTO_PROJECT}-prompt.md"
-)
-[[ "$PLUGIN" == "true" ]] && RENDER_ARGS+=(--plugin-present true)
-[[ -n "${JUNTO_OVERLAY:-}" ]] && RENDER_ARGS+=(--overlay "$JUNTO_OVERLAY")
-
-PROMPT_FILE=$(bash "${TEMPLATES}/render.sh" "${RENDER_ARGS[@]}")
+# Render system prompt (setup mode uses a pre-written minimal prompt)
+if [[ "$SETUP_MODE" == "true" ]]; then
+    PROMPT_FILE="$_SETUP_PROMPT_FILE"
+else
+    RENDER_ARGS=(
+        --agent "$JUNTO_AGENT"
+        --project "$JUNTO_PROJECT"
+        --role "$JUNTO_ROLE"
+        --shared-memory-url "$JUNTO_MEMORY_URL"
+        --cwd "$(pwd)"
+        --api-key "$JUNTO_API_KEY"
+        --out "/tmp/junto-${JUNTO_AGENT}-${JUNTO_PROJECT}-prompt.md"
+    )
+    [[ "$PLUGIN" == "true" ]] && RENDER_ARGS+=(--plugin-present true)
+    [[ -n "${JUNTO_OVERLAY:-}" ]] && RENDER_ARGS+=(--overlay "$JUNTO_OVERLAY")
+    PROMPT_FILE=$(bash "${TEMPLATES}/render.sh" "${RENDER_ARGS[@]}")
+fi
 
 # Opt into Sonnet 1M context window
 export ANTHROPIC_DEFAULT_SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-sonnet-4-6[1m]}"

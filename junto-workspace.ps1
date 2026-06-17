@@ -294,9 +294,7 @@ if (-not $env:JUNTO_AGENT -or -not $env:JUNTO_PROJECT) {
         $env:JUNTO_AGENT   = 'ws-setup'
         $env:JUNTO_PROJECT = 'junto'
         $env:JUNTO_ROLE    = 'Workspace setup assistant'
-        $env:JUNTO_OVERLAY = Join-Path $JuntoDir 'templates\overlays\workspace-setup.md'
-        # Create settings.local.json before launching so the setup session has
-        # access to the full junto MCP tool suite (needed for memory_list_projects).
+        # Create settings.local.json before launching so junto MCP tools are available.
         $projectClaudeDir = Join-Path $cwd '.claude'
         if (-not (Test-Path $projectClaudeDir)) { New-Item -ItemType Directory -Path $projectClaudeDir -Force | Out-Null }
         $localSettings = Join-Path $projectClaudeDir 'settings.local.json'
@@ -307,6 +305,51 @@ if (-not $env:JUNTO_AGENT -or -not $env:JUNTO_PROJECT) {
                 enabledMcpjsonServers      = @('junto')
             } | ConvertTo-Json -Depth 5 | Set-Content -Path $localSettings -Encoding utf8
         }
+        # Write a minimal focused prompt — skip the full junto template so CC goes
+        # straight to the wizard without running the normal memory startup sequence.
+        $SetupPromptFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), 'junto-ws-setup-prompt.md')
+        $setupUrl = $env:JUNTO_MEMORY_URL; $setupKey = $env:JUNTO_API_KEY
+        Set-Content -Path $SetupPromptFile -Encoding utf8 -Value @"
+# Workspace Setup Wizard
+
+**Start the wizard immediately when this session opens. Do not run any startup sequence or memory protocol.**
+
+Your only job: configure the junto identity for ``$cwd`` and exit.
+
+## Wizard steps
+
+**Step 1 -- List projects**
+Call ``memory_list_projects`` (session_id: start a minimal session with memory_start_session using project="junto", claude_instance="ws-setup"). If tools are unavailable, ask the user to type a project name.
+
+**Step 2 -- Ask three questions** (one at a time):
+1. **Agent name** -- suggest ``junto{FirstName}`` based on system user. Default to ``juntoTom`` for user ``tlemmons``.
+2. **Project** -- show numbered list if available, plus option to type a new name. Enforce lowercase.
+3. **Component** (optional) -- sub-area like ``cameraSync``. Enter to skip.
+
+**Step 3 -- Write these files to ``$cwd``:**
+
+``CLAUDE.md``:
+```
+# {agent_name}
+
+Your name is: ``{agent_name}``
+
+<!-- project="{project_name}" -->
+```
+Add ``<!-- component="{component}" -->`` if they gave one.
+
+``.agent-name`` -- one line, just the agent name, no newline.
+``.project-name`` -- one line, just the project name, no newline.
+
+**Step 4 -- Tell the user:**
+> Workspace configured as ``{agent_name}@{project_name}``. Run ``junto-workspace.ps1`` again to start your session.
+
+**Step 5 -- End.** Call memory_end_session with a one-line summary.
+
+## Credentials
+- Server: $setupUrl
+- API key: $setupKey
+"@
         Write-Host "junto: no workspace identity found -- launching setup assistant..." -ForegroundColor Cyan
         Write-Host "junto: answer the questions, then run junto-workspace.ps1 again to start your session." -ForegroundColor Cyan
     } else {
@@ -346,22 +389,26 @@ if (-not $NoPlugin) {
     }
 }
 
-# Render the system prompt
-$promptFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "junto-$($env:JUNTO_AGENT)-$($env:JUNTO_PROJECT)-prompt.md")
-$renderArgs = @{
-    Agent           = $env:JUNTO_AGENT
-    Project         = $env:JUNTO_PROJECT
-    Role            = $env:JUNTO_ROLE
-    SharedMemoryUrl = $env:JUNTO_MEMORY_URL
-    Cwd             = $cwd
-    ApiKey          = $env:JUNTO_API_KEY
-    PluginPresent   = (-not $NoPlugin.IsPresent)
-    Out             = $promptFile
+# Render the system prompt (setup mode uses a pre-written minimal prompt)
+if ($SetupMode) {
+    $promptFile = $SetupPromptFile
+} else {
+    $promptFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "junto-$($env:JUNTO_AGENT)-$($env:JUNTO_PROJECT)-prompt.md")
+    $renderArgs = @{
+        Agent           = $env:JUNTO_AGENT
+        Project         = $env:JUNTO_PROJECT
+        Role            = $env:JUNTO_ROLE
+        SharedMemoryUrl = $env:JUNTO_MEMORY_URL
+        Cwd             = $cwd
+        ApiKey          = $env:JUNTO_API_KEY
+        PluginPresent   = (-not $NoPlugin.IsPresent)
+        Out             = $promptFile
+    }
+    if ($env:JUNTO_OVERLAY -and (Test-Path $env:JUNTO_OVERLAY)) {
+        $renderArgs['Overlay'] = $env:JUNTO_OVERLAY
+    }
+    & (Join-Path $TemplatesDir 'render.ps1') @renderArgs | Out-Null
 }
-if ($env:JUNTO_OVERLAY -and (Test-Path $env:JUNTO_OVERLAY)) {
-    $renderArgs['Overlay'] = $env:JUNTO_OVERLAY
-}
-& (Join-Path $TemplatesDir 'render.ps1') @renderArgs | Out-Null
 
 # Opt into Sonnet 1M context window
 if (-not $env:ANTHROPIC_DEFAULT_SONNET_MODEL) {
