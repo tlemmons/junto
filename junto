@@ -436,6 +436,15 @@ _ctx="${JUNTO_AGENT}@${JUNTO_PROJECT}"
 echo "junto: launching ${_ctx} → ${JUNTO_MEMORY_URL}" >&2
 [[ "$PLUGIN" == "true" ]] && echo "junto: push plugin enabled" >&2
 
+# Auto-run 'go' on normal launches when the user hasn't passed a custom prompt.
+# This starts the startup briefing immediately without requiring the user to type anything.
+# Skipped in setup mode (the setup wizard handles its own prompting) and when the
+# user passes extra args (they're doing something specific).
+INITIAL_PROMPT=()
+if [[ "$SETUP_MODE" == "false" && ${#CLAUDE_ARGS[@]} -eq 0 ]]; then
+    INITIAL_PROMPT=("go")
+fi
+
 if [[ "$PLUGIN" == "true" ]]; then
     # Use --channels (approved/installed channel) NOT --dangerously-load-development-channels:
     # the dangerous flag triggers an interactive "Loading development channels" confirmation
@@ -444,9 +453,11 @@ if [[ "$PLUGIN" == "true" ]]; then
     exec claude \
         --append-system-prompt-file "$PROMPT_FILE" \
         --channels "plugin:junto-inbox@tlemmons-junto-inbox" \
-        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}
+        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"} \
+        ${INITIAL_PROMPT[@]+"${INITIAL_PROMPT[@]}"}
 else
     exec claude \
         --append-system-prompt-file "$PROMPT_FILE" \
-        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}
+        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"} \
+        ${INITIAL_PROMPT[@]+"${INITIAL_PROMPT[@]}"}
 fi
