@@ -445,19 +445,27 @@ if [[ "$SETUP_MODE" == "false" && ${#CLAUDE_ARGS[@]} -eq 0 ]]; then
     INITIAL_PROMPT=("go")
 fi
 
+# Build the command array, then exec with optional initial prompt.
+# The -- separator must be two separate argv elements, not a single "-- go" string.
 if [[ "$PLUGIN" == "true" ]]; then
     # Use --channels (approved/installed channel) NOT --dangerously-load-development-channels:
     # the dangerous flag triggers an interactive "Loading development channels" confirmation
     # gate (CC 2.1.x) that blocks headless/always-on launches. The plugin is marketplace-
     # installed + enabled, so it loads as an approved channel with no gate.
-    exec claude \
-        --append-system-prompt-file "$PROMPT_FILE" \
-        --channels "plugin:junto-inbox@tlemmons-junto-inbox" \
-        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"} \
-        ${INITIAL_PROMPT[@]+"${INITIAL_PROMPT[@]}"}
+    CLAUDE_CMD=(claude
+        --append-system-prompt-file "$PROMPT_FILE"
+        --channels "plugin:junto-inbox@tlemmons-junto-inbox"
+        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}
+    )
 else
-    exec claude \
-        --append-system-prompt-file "$PROMPT_FILE" \
-        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"} \
-        ${INITIAL_PROMPT[@]+"${INITIAL_PROMPT[@]}"}
+    CLAUDE_CMD=(claude
+        --append-system-prompt-file "$PROMPT_FILE"
+        ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}
+    )
+fi
+
+if [[ ${#INITIAL_PROMPT[@]} -gt 0 ]]; then
+    exec "${CLAUDE_CMD[@]}" -- "${INITIAL_PROMPT[@]}"
+else
+    exec "${CLAUDE_CMD[@]}"
 fi
