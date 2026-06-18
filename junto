@@ -246,8 +246,10 @@ CLAUDE_MD="$(pwd)/CLAUDE.md"
 AGENT_NAME_FILE="$(pwd)/.agent-name"
 PROJECT_NAME_FILE="$(pwd)/.project-name"
 
+_IDENTITY_LOCAL=false   # true only when identity comes from cwd files/CLAUDE.md
+
 _ws_find_claude_md() {
-    [[ -f "$CLAUDE_MD" ]] && return 0
+    [[ -f "$CLAUDE_MD" ]] && return 0   # cwd has CLAUDE.md — identity will be local
     local dir; dir="$(pwd)"
     while [[ "$dir" != "$HOME" && "$dir" != "/" ]]; do
         dir="$(dirname "$dir")"
@@ -260,20 +262,23 @@ _ws_find_claude_md() {
 
 _ws_read_local_files() {
     [[ -n "${JUNTO_AGENT:-}" && -n "${JUNTO_PROJECT:-}" ]] && return 0
+    local found=false
     if [[ -f "$AGENT_NAME_FILE" ]]; then
         local a; a=$(head -1 "$AGENT_NAME_FILE" 2>/dev/null | tr -d '[:space:]')
-        [[ -n "$a" && -z "${JUNTO_AGENT:-}" ]] && JUNTO_AGENT="$a"
+        [[ -n "$a" && -z "${JUNTO_AGENT:-}" ]] && JUNTO_AGENT="$a" && found=true
     fi
     if [[ -f "$PROJECT_NAME_FILE" ]]; then
         local p; p=$(head -1 "$PROJECT_NAME_FILE" 2>/dev/null | tr -d '[:space:]')
-        [[ -n "$p" && -z "${JUNTO_PROJECT:-}" ]] && JUNTO_PROJECT="$p"
+        [[ -n "$p" && -z "${JUNTO_PROJECT:-}" ]] && JUNTO_PROJECT="$p" && found=true
     fi
+    [[ "$found" == "true" ]] && _IDENTITY_LOCAL=true
     return 0
 }
 
 _ws_read_claude_md() {
     [[ -n "${JUNTO_AGENT:-}" && -n "${JUNTO_PROJECT:-}" ]] && return 0
     [[ ! -f "$CLAUDE_MD" ]] && return 0
+    local before_agent="${JUNTO_AGENT:-}" before_project="${JUNTO_PROJECT:-}"
     if [[ -z "${JUNTO_AGENT:-}" ]]; then
         local a; a=$(grep -m1 'Your name is:.*`' "$CLAUDE_MD" 2>/dev/null \
             | sed 's/.*`\([^`]*\)`.*/\1/' || true)
@@ -289,6 +294,10 @@ _ws_read_claude_md() {
             | sed 's/.*component="\([^"]*\)".*/\1/' || true)
         [[ -n "$c" ]] && JUNTO_COMPONENT="$c"
     fi
+    # Mark as local only if CLAUDE.md is in cwd itself
+    if [[ "$CLAUDE_MD" == "$(pwd)/CLAUDE.md" ]]; then
+        _IDENTITY_LOCAL=true
+    fi
     return 0
 }
 
@@ -301,6 +310,22 @@ _ws_read_claude_md
 if [[ "$FORCE_SETUP" == "true" ]]; then
     JUNTO_AGENT=""
     JUNTO_PROJECT=""
+    _IDENTITY_LOCAL=false
+fi
+
+# Identity found from a parent directory — ask before inheriting it.
+# Identity in cwd (.agent-name, .project-name, CLAUDE.md) is used silently.
+if [[ -n "${JUNTO_AGENT:-}" && -n "${JUNTO_PROJECT:-}" && "$_IDENTITY_LOCAL" == "false" && -t 0 && -t 1 ]]; then
+    echo "" >&2
+    echo "junto: found identity ${JUNTO_AGENT}@${JUNTO_PROJECT} from parent directory" >&2
+    echo "       ($(dirname "$CLAUDE_MD"))" >&2
+    printf "junto: use this identity for $(pwd)? [Y/n] " >/dev/tty
+    read -r _confirm </dev/tty
+    echo "" >&2
+    if [[ "${_confirm:-y}" =~ ^[Nn] ]]; then
+        JUNTO_AGENT=""
+        JUNTO_PROJECT=""
+    fi
 fi
 
 SETUP_MODE=false
