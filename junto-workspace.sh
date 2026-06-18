@@ -402,6 +402,11 @@ if [[ "$PLUGIN" == "true" ]] && [[ -f "${HOME}/.claude/hooks/ensure-channel-sett
     bash "${HOME}/.claude/hooks/ensure-channel-settings.sh"
 fi
 
+# First-run onboarding: inject overlay on first normal launch if not yet onboarded
+if [[ "$SETUP_MODE" == "false" && ! -f "${HOME}/.junto/.onboarded" && -z "${JUNTO_OVERLAY:-}" ]]; then
+    JUNTO_OVERLAY="${JUNTO_DIR}/templates/overlays/first-run.md"
+fi
+
 # Render system prompt (setup mode uses a pre-written minimal prompt)
 if [[ "$SETUP_MODE" == "true" ]]; then
     PROMPT_FILE="$_SETUP_PROMPT_FILE"

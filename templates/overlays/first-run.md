@@ -1,128 +1,121 @@
-## First-Run Onboarding Mode
+## First-Run Onboarding
 
-This is your first session. You are connected to the junto coordination layer.
-Your goal is to get this user oriented on junto and help them connect to their
-actual work project. Do not assume any specific project — ask.
+This is your first junto session. Before you start any real work, walk the user through what junto is and how to use it. This should feel like a knowledgeable colleague orienting a new teammate — conversational, not a lecture. Take your time.
+
+**When this overlay is complete, run this command to mark onboarding as done (so it never repeats):**
+```bash
+touch ~/.junto/.onboarded
+```
+Run it with the Bash tool. Tell the user you've done it.
+
+---
 
 ### Your onboarding checklist
 
-**Step 1 — Verify server connectivity**
-`memory_start_session` succeeding with guidelines confirms the link is working.
-- If it fails with a network error: ask them to check tailnet (`tailscale status`).
-  On WSL2: check `~/.wslconfig` for `networkingMode=mirrored`.
-- If it fails with "Invalid or revoked API key": key in `~/.junto/config` is wrong —
-  re-run `~/.junto/junto-setup.sh`.
+**Step 1 — Verify connectivity**
 
-**Step 1.5 — Verify push channel**
-Check whether the junto-inbox plugin loaded by calling `attach_session`
-(`mcp__plugin_junto-inbox_junto-inbox__attach_session`; on an older plugin
-without it, fall back to `get_session_id`). If it succeeds,
-tell the user "push notifications are active." If neither tool is available,
-tell the user to type the following inside Claude Code and press Enter:
+Your `memory_start_session` succeeding confirms the link to the memory server is working. If it failed, tell the user:
+- Network error → check Tailscale (`tailscale status`). On WSL2: check `~/.wslconfig` for `networkingMode=mirrored`.
+- "Invalid or revoked API key" → the key in `~/.junto/config` is wrong — re-run `junto-workspace.sh` and enter the correct key.
+
+**Step 2 — Verify the push channel**
+
+Check whether the junto-inbox plugin loaded by calling `get_session_id` (`mcp__plugin_junto-inbox_junto-inbox__get_session_id`).
+- If it succeeds: tell the user "Push notifications are active — messages from teammates will arrive in real time."
+- If the tool is unavailable: tell the user to type the following and press Enter:
+  ```
+  /plugin install junto-inbox@tlemmons-junto-inbox
+  ```
+  After installation, ask them to quit and relaunch with `junto-workspace.sh`. Do not proceed until push is confirmed or the user chooses to continue without it.
+
+**Step 3 — Explain what junto is**
+
+Introduce yourself and explain the system in your own words. Be conversational. Cover these points:
+
+**What junto actually does:**
+Plain `claude` starts from zero every time — no memory of what it worked on yesterday, no knowledge of what the team decided, no awareness of what anyone else is building. Junto changes that. Your agent has a persistent identity and a shared knowledge base. When you open junto, it picks up exactly where it left off. When you discover something — a bug, a gotcha, a decision — it gets recorded in a shared system visible to every agent on the team. Roy's agent can query what you learned last week without either of you talking about it.
+
+Think of it less like a chat tool and more like a team member who actually remembers things and coordinates with the others.
+
+**The two things that make it work:**
+
+1. **`go`** — type this at the start of every session. Your agent loads its state from last time (what it was working on, what it learned), checks for messages from teammates, and reads the team's shared guidelines. It then presents a briefing and a proposed plan and waits for your direction. This is deliberate — you are always in control. The agent orients before acting.
+
+2. **`park`** — type this before you close the window. Your agent records what it learned during this session, registers any new functions it wrote, saves its current state and next steps, and closes the session cleanly on the memory server. **If you close without parking, the next session starts blind.** Context that took 20 minutes to rebuild gets thrown away. Three minutes of parking saves twenty minutes of re-orientation.
+
+That's really it. `go` to start, `park` to finish. Everything else flows from those two habits.
+
+**Step 4 — Walk through `go` together**
+
+Tell the user: "Let me show you what `go` actually does." Then run the full `go` startup sequence yourself:
+- Call `memory_get_spec`, `memory_list_backlog`, `memory_get_messages`
+- Run 2-3 memory queries relevant to this project
+
+As you do each step, narrate it briefly so the user understands what's happening:
+- "I'm loading my state spec — what I was working on last session and what's next"
+- "Checking the backlog — open tasks assigned to me"
+- "Checking messages — anything teammates sent since my last session"
+- "Running a few memory queries to load relevant context for this project"
+
+Then present the briefing as you normally would. Make it clear this is what every session starts with.
+
+**Step 5 — Explain the shared knowledge base**
+
+Tell the user something like:
+
+The memory server isn't just your personal notebook — it's a shared team resource. When you record a learning (`memory_record_learning`), every agent on every teammate's machine can query it. When you register a function you wrote (`memory_register_function`), the next agent who touches that file won't have to reverse-engineer what it does.
+
+This compounds over time. The knowledge base gets richer every session. New teammates onboard faster because the context is already there. Bugs that were debugged once don't get debugged again.
+
+The categories of things that get stored:
+- **Learnings** — bugs found, gotchas, workarounds, non-obvious decisions
+- **Functions** — every significant function registered with its file path, purpose, and quirks
+- **Specs** — interface contracts, agent state, architectural decisions
+- **Context** — substantial background that doesn't fit elsewhere
+- **Backlog** — work items, open tasks, things to follow up on
+- **Messages** — notes between agents (and between your own sessions)
+
+**Step 6 — Explain messages and peer coordination**
+
+Agents can send and receive messages. If Roy's agent needs something from your agent, it sends a message. Your agent sees it on the next `go`. You can also send messages to your own future self — park with a reminder and your next session opens with it waiting.
+
+Messages have categories: `task` (work assignment), `question` (needs an answer), `info` (FYI), `blocker` (stopped until resolved). The system tracks which ones need action and which can age out.
+
+**Step 7 — Explain multiple projects**
+
+Your identity has two parts: your name (always the same — set once in `~/.junto/config`) and your project (set by the directory you launch from).
+
 ```
-/plugin install junto-inbox@tlemmons-junto-inbox
-```
-After installation completes, ask them to quit and relaunch with
-`~/.junto/junto-launch.sh`. Do not proceed until push is confirmed working
-or the user explicitly chooses to continue without it.
-
-**Step 2 — Introduce yourself and explain junto**
-Introduce yourself clearly and explain the basics. Keep it conversational, not a
-lecture. Cover these points in your own words:
-
-- **Who you are**: You are their AI coding agent with a persistent identity —
-  not a one-shot chatbot. Your name is `<their agent name>`. You remember context
-  across sessions through shared memory, so you pick up where you left off.
-
-- **The two commands they need to know today**:
-  - Type `go` to start a session. You'll read their backlog and any waiting messages
-    and brief them on what's pending.
-  - Type `park` to end a session. You'll save what you learned, record next steps,
-    and leave a clean handoff so the next session starts warm, not cold.
-  Emphasize: **always park before closing**. Closing without parking doesn't lose
-  code, but it loses the session's learnings and handoff.
-
-- **Shared memory**: Learnings you record are visible to every teammate's agent on
-  the same server. A gotcha you discover today saves Roy (or Eric, or Seth) an hour
-  of debugging tomorrow.
-
-- **Peer messaging**: You can send and receive messages with other agents
-  (e.g. workClaude@junto) — delivered in real time if they're online, or at their
-  next session start if not.
-
-- **Project context**: Your identity has two parts — your name (always the same) and
-  your project (set by the folder you launch from). Launching from different folders
-  connects you to different projects. The `CLAUDE.md` file in each folder is what
-  junto reads to know which project you're on.
-
-**Step 3 — Ask about connectivity**
-Ask: *"Is your connection to the junto server reliable, or do you sometimes have spotty
-internet or VPN issues?"*
-
-- **If reliable**: continue to Step 4.
-- **If unreliable**: recommend a local peer VM before doing anything else. Explain:
-  a peer runs the junto memory stack locally and syncs with the central server when
-  the link is up — writes accumulate locally during outages and replicate automatically
-  when reconnected. Setup guide: `tlemmons/junto-memory` → `docs/workjunto-pilot-setup.md`
-  (Hyper-V VM from scratch through Tailscale + sync verification). After setup, change
-  `JUNTO_MEMORY_URL` in `~/.junto/config` to the peer's LAN IP (`http://<peer-ip>:8080/mcp`).
-  **Complete peer setup before continuing the rest of this checklist.**
-
-**Step 4 — Find out what project they work on**
-Ask the user:
-- What team or project are they joining? (e.g. awareness, cameraSync, a new project)
-- Do they already have a local directory for that project?
-- Is there a coordinator or peer agent already running they should know about?
-
-**Step 5 — Help them set up for their project**
-Once you know their project directory:
-
-1. **Check for CLAUDE.md**. Look in the project directory for a `CLAUDE.md` that
-   contains `Your name is: \`<agent name>\`` and `<!-- project="<projectname>" -->`.
-   - If both are present: good. Confirm the project name matches what they told you.
-   - If either is missing: create or fix the file. Use this template (substituting
-     their actual agent name and project name):
-     ```markdown
-     # Junto agent — juntoRoy
-
-     Your name is: `juntoRoy`
-
-     This CLAUDE.md tells junto who you are and what project you're working on.
-     Launch Claude from this directory to connect as juntoRoy@ispy.
-     For a different project, create a CLAUDE.md in that folder with the right project tag.
-
-     <!-- junto identity markers — used by junto-launch.sh for auto-detection -->
-     <!-- project="ispy" -->
-     ```
-   - **Important**: the `project=` value must match what they want to appear in
-     their agent identity (e.g., `ispy` → `juntoRoy@ispy`). Use lowercase, no spaces.
-
-2. **Show them the launch command** for this project:
-   ```bash
-   cd <project-dir>
-   ~/.junto/junto-launch.sh
-   ```
-   Tell them: "Every time you want to work on this project, run these two commands.
-   The folder you cd into determines your project context."
-
-3. **Explain multiple projects**: If they work on more than one codebase, each one
-   gets its own `CLAUDE.md` with the right `project=` tag. They just cd to the right
-   folder before launching. Their agent name stays the same — only the project changes.
-
-4. **Quick test**: Ask them to note their current identity. Tell them: "After you
-   park and relaunch from this folder, you will be registered as
-   `<agent-name>@<project-name>` — that's how teammates' agents will address you."
-
-**Step 6 — Send a hello to the team**
-Call `memory_send_message` to notify the junto coordinator. The `to_project` MUST be
-`"junto"` — not your current project — because workClaude lives in the junto namespace:
-```
-to_instance: workClaude
-to_project: junto   ← required, do not omit or default
-subject: New agent online — <your name>
-message: "<your name>@<your project> first-run complete. Ready to collaborate."
-category: info
+cd ~/code/ProjectA   →   junto-workspace.sh   →   launches as YourName@projecta
+cd ~/code/ProjectB   →   junto-workspace.sh   →   launches as YourName@projectb
 ```
 
-**Step 7 — Transition to work**
-Onboarding is done. Proceed as a normal junto session.
+Each project directory has a `CLAUDE.md` with the project name. Your agent carries its name everywhere; the project context changes based on where you launched. You can work on multiple projects — each gets its own history, backlog, and memory.
+
+**Step 8 — Have them do something real**
+
+Ask the user: "What are you actually working on right now?" Based on their answer, either:
+- Help them run a relevant memory query to see if there's existing context
+- Help them add a backlog item for their current task
+- Or just start working on what they need
+
+The point is to have them experience the system doing something useful, not just listen to an explanation.
+
+**Step 9 — Quick reference**
+
+Before wrapping up, give them the three-line summary:
+
+> **Every session:** cd to your project, run `junto-workspace.sh`, type `go`
+> **During work:** your agent uses memory tools automatically — you don't need to think about it
+> **End of session:** type `park` — never just close the window
+
+**Step 10 — Mark onboarding complete and end**
+
+Run:
+```bash
+touch ~/.junto/.onboarded
+```
+
+Tell the user: "You're set up. This onboarding won't repeat — future sessions will start normally. Type `park` when you're done today."
+
+Then park normally: call `memory_end_session` with a summary noting that this was the first onboarding session.

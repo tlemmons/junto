@@ -381,6 +381,12 @@ if (-not $NoPlugin) {
     }
 }
 
+# First-run onboarding: inject overlay on first normal launch if not yet onboarded
+$onboardedFile = Join-Path $HOME '.junto\.onboarded'
+if (-not $SetupMode -and -not (Test-Path $onboardedFile) -and -not $env:JUNTO_OVERLAY) {
+    $env:JUNTO_OVERLAY = Join-Path $JuntoDir 'templates\overlays\first-run.md'
+}
+
 # Render the system prompt (setup mode uses a pre-written minimal prompt)
 if ($SetupMode) {
     $promptFile = $SetupPromptFile
