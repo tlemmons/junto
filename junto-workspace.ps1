@@ -420,7 +420,7 @@ if (-not $NoPlugin) { Write-Host "junto: push plugin enabled" -ForegroundColor C
 
 $allClaudeArgs = @('--append-system-prompt-file', $promptFile)
 if (-not $NoPlugin) {
-    $allClaudeArgs += '--dangerously-load-development-channels'
+    $allClaudeArgs += '--channels'
     $allClaudeArgs += 'plugin:junto-inbox@tlemmons-junto-inbox'
 }
 if ($ClaudeArgs) { $allClaudeArgs += $ClaudeArgs }
