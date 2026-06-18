@@ -432,9 +432,13 @@ echo "junto: launching ${_ctx} → ${JUNTO_MEMORY_URL}" >&2
 [[ "$PLUGIN" == "true" ]] && echo "junto: push plugin enabled" >&2
 
 if [[ "$PLUGIN" == "true" ]]; then
+    # Use --channels (approved/installed channel) NOT --dangerously-load-development-channels:
+    # the dangerous flag triggers an interactive "Loading development channels" confirmation
+    # gate (CC 2.1.x) that blocks headless/always-on launches. The plugin is marketplace-
+    # installed + enabled, so it loads as an approved channel with no gate.
     exec claude \
         --append-system-prompt-file "$PROMPT_FILE" \
-        --dangerously-load-development-channels "plugin:junto-inbox@tlemmons-junto-inbox" \
+        --channels "plugin:junto-inbox@tlemmons-junto-inbox" \
         ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}
 else
     exec claude \
