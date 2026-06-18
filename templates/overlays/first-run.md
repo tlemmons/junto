@@ -14,9 +14,10 @@ actual work project. Do not assume any specific project — ask.
   re-run `~/.junto/junto-setup.sh`.
 
 **Step 1.5 — Verify push channel**
-Check whether the junto-inbox plugin loaded by calling `get_session_id`
-(`mcp__plugin_junto-inbox_junto-inbox__get_session_id`). If it succeeds,
-tell the user "push notifications are active." If the tool is unavailable,
+Check whether the junto-inbox plugin loaded by calling `attach_session`
+(`mcp__plugin_junto-inbox_junto-inbox__attach_session`; on an older plugin
+without it, fall back to `get_session_id`). If it succeeds,
+tell the user "push notifications are active." If neither tool is available,
 tell the user to type the following inside Claude Code and press Enter:
 ```
 /plugin install junto-inbox@tlemmons-junto-inbox

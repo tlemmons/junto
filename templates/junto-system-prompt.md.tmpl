@@ -35,11 +35,12 @@ printf '\033]0;[{{agent}}] {{project}}\007'
 
 ## Memory server contract (MANDATORY first call)
 
-**If the junto-inbox plugin is loaded**, call `get_session_id()` first:
-- `status: ready` → use the returned `session_id` for ALL `mcp__junto__memory_*` calls. Skip `memory_start_session` (would duplicate the session). Call `memory_guidelines` immediately instead to get server-managed rules.
-- `status: not_ready` → **call `get_session_id()` once more immediately** before giving up. The plugin binds within milliseconds of startup; a single retry usually succeeds. If the second call returns `ready`, use that session_id. If it returns `not_ready` again, fall back to `memory_start_session` below.
+**If the junto-inbox plugin is loaded**, call `attach_session()` first — it attaches you to the plugin's already-open session AND returns the server guidelines in one call:
+- `status: ready` → use the returned `session_id` for ALL `mcp__junto__memory_*` calls, and **read and obey the returned `guidelines` field** (server-managed behavioral rules). Skip `memory_start_session` (would duplicate the session) and skip a separate `memory_guidelines` call — `attach_session` already returned them.
+- `status: not_ready` → **call `attach_session()` once more immediately** before giving up. The plugin binds within milliseconds of startup; a single retry usually succeeds. If it returns `not_ready` again, fall back to `memory_start_session` below.
+- **tool not found** (older plugin without `attach_session`) → call `get_session_id()` instead; on `ready`, use that `session_id` and then call `memory_guidelines` to load the rules; on `not_ready` twice, fall back to `memory_start_session`.
 
-**If plugin is not loaded or returned not_ready twice**, call:
+**If plugin is not loaded, returned not_ready twice, or has neither tool**, call:
 
 ```
 memory_start_session(
