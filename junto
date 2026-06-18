@@ -209,6 +209,12 @@ PYEOF
     JUNTO_MEMORY_URL="$junto_url"
 }
 
+# Capture any explicit identity overrides the user set in their shell BEFORE
+# running junto. Config is machine-level (API key, URL) — it must not override
+# per-directory identity resolution done in Phase 2.
+_EXPLICIT_AGENT="${JUNTO_AGENT:-}"
+_EXPLICIT_PROJECT="${JUNTO_PROJECT:-}"
+
 if [[ -f "$CONFIG" ]]; then
     set -a
     # shellcheck disable=SC1090
@@ -220,6 +226,13 @@ else
     echo "junto: ~/.junto/config not found. Run ~/.junto/junto interactively to complete machine setup." >&2
     exit 1
 fi
+
+# Restore: discard any JUNTO_AGENT/JUNTO_PROJECT that came from config.
+# Per-directory files (.agent-name, .project-name, CLAUDE.md) and the setup
+# wizard are the authoritative source. Config values here are from old
+# junto-setup.sh runs and should not bypass per-directory detection.
+JUNTO_AGENT="${_EXPLICIT_AGENT}"
+JUNTO_PROJECT="${_EXPLICIT_PROJECT}"
 
 # Keyless is valid (open-auth server). Default the key now — BEFORE any reference
 # (the setup-mode wizard prompt embeds it) — so set -u doesn't trip on an unset key.
