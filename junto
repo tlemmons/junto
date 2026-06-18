@@ -313,20 +313,9 @@ if [[ "$FORCE_SETUP" == "true" ]]; then
     _IDENTITY_LOCAL=false
 fi
 
-# Identity found from a parent directory — ask before inheriting it.
-# Identity in cwd (.agent-name, .project-name, CLAUDE.md) is used silently.
-if [[ -n "${JUNTO_AGENT:-}" && -n "${JUNTO_PROJECT:-}" && "$_IDENTITY_LOCAL" == "false" && -t 0 && -t 1 ]]; then
-    echo "" >&2
-    echo "junto: found identity ${JUNTO_AGENT}@${JUNTO_PROJECT} from parent directory" >&2
-    echo "       ($(dirname "$CLAUDE_MD"))" >&2
-    printf "junto: use this identity for $(pwd)? [Y/n] " >/dev/tty
-    read -r _confirm </dev/tty
-    echo "" >&2
-    if [[ "${_confirm:-y}" =~ ^[Nn] ]]; then
-        JUNTO_AGENT=""
-        JUNTO_PROJECT=""
-    fi
-fi
+# Parent-directory identity is inherited silently — subproject directories
+# should naturally pick up their parent project's identity.
+# Use junto --setup to override with a different identity if needed.
 
 SETUP_MODE=false
 if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
