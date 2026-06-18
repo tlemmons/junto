@@ -16,7 +16,7 @@ Run it with the Bash tool. Tell the user you've done it.
 
 Your `memory_start_session` succeeding confirms the link to the memory server is working. If it failed, tell the user:
 - Network error → check Tailscale (`tailscale status`). On WSL2: check `~/.wslconfig` for `networkingMode=mirrored`.
-- "Invalid or revoked API key" → the key in `~/.junto/config` is wrong — re-run `junto-workspace.sh` and enter the correct key.
+- "Invalid or revoked API key" → the key in `~/.junto/config` is wrong — re-run `junto` and enter the correct key.
 
 **Step 2 — Verify the push channel**
 
@@ -26,7 +26,7 @@ Check whether the junto-inbox plugin loaded by calling `get_session_id` (`mcp__p
   ```
   /plugin install junto-inbox@tlemmons-junto-inbox
   ```
-  After installation, ask them to quit and relaunch with `junto-workspace.sh`. Do not proceed until push is confirmed or the user chooses to continue without it.
+  After installation, ask them to quit and relaunch with `junto`. Do not proceed until push is confirmed or the user chooses to continue without it.
 
 **Step 3 — Explain what junto is**
 
@@ -86,8 +86,8 @@ Messages have categories: `task` (work assignment), `question` (needs an answer)
 Your identity has two parts: your name (always the same — set once in `~/.junto/config`) and your project (set by the directory you launch from).
 
 ```
-cd ~/code/ProjectA   →   junto-workspace.sh   →   launches as YourName@projecta
-cd ~/code/ProjectB   →   junto-workspace.sh   →   launches as YourName@projectb
+cd ~/code/ProjectA   →   junto   →   launches as YourName@projecta
+cd ~/code/ProjectB   →   junto   →   launches as YourName@projectb
 ```
 
 Each project directory has a `CLAUDE.md` with the project name. Your agent carries its name everywhere; the project context changes based on where you launched. You can work on multiple projects — each gets its own history, backlog, and memory.
@@ -105,7 +105,7 @@ The point is to have them experience the system doing something useful, not just
 
 Before wrapping up, give them the three-line summary:
 
-> **Every session:** cd to your project, run `junto-workspace.sh`, type `go`
+> **Every session:** cd to your project, run `junto`, type `go`
 > **During work:** your agent uses memory tools automatically — you don't need to think about it
 > **End of session:** type `park` — never just close the window
 

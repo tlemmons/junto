@@ -14,7 +14,7 @@ Two audiences in this doc:
 ```
 [Developer laptop]                     [Server — Linux VM]
   Claude Code CLI                        Docker containers:
-  junto-launch.sh         → HTTP →         mcp-rag-arch  (junto-memory MCP server)
+  junto         → HTTP →         mcp-rag-arch  (junto-memory MCP server)
   junto-inbox plugin                       mcp-mongodb   (MongoDB 7.0)
   ~/.mcp.json                              mcp-chromadb  (ChromaDB)
 ```
@@ -277,8 +277,8 @@ Install Claude Code if missing: https://claude.ai/code
 | | Windows-native (PowerShell) | WSL2 |
 |---|---|---|
 | Shell | PowerShell 5.1+ | bash |
-| Setup script | `junto-setup.ps1` | `junto-setup.sh` |
-| Launcher | `junto-launch.ps1` | `junto-launch.sh` |
+| Setup script | `junto.ps1` | `junto` |
+| Launcher | `junto.ps1` | `junto` |
 | Alias | PowerShell profile | `.bashrc` / `.zshrc` |
 | Recommended if | You primarily use Windows tools | You already work in WSL2 |
 
@@ -322,7 +322,7 @@ git clone https://github.com/tlemmons/junto.git "$HOME\.junto"
 
 **Run setup** (first run launches the setup wizard; rerun to start your session):
 ```powershell
-& "$HOME\.junto\junto-workspace.ps1"
+& "$HOME\.junto\junto.ps1"
 ```
 Answer the prompts (name, API key, server URL, project). **Leave the API key BLANK for a keyless / open-auth server** (e.g. the home/sage server, which runs `MCP_AUTH_ENABLED=false`) — only paste an `smk_...` key if your admin issued one. A non-empty *wrong* key is rejected by the server, so blank is the correct choice when there is no key.
 
@@ -334,7 +334,7 @@ Test-Path $PROFILE
 New-Item -Path $PROFILE -ItemType File -Force
 
 # Add the alias:
-Add-Content $PROFILE "`nSet-Alias junto `"$HOME\.junto\junto-workspace.ps1`""
+Add-Content $PROFILE "`nSet-Alias junto `"$HOME\.junto\junto.ps1`""
 
 # Reload:
 . $PROFILE
@@ -392,7 +392,7 @@ git clone https://github.com/tlemmons/junto.git ~/.junto
 ### 2.5 Run setup
 
 ```bash
-~/.junto/junto-workspace.sh
+~/.junto/junto
 ```
 
 The wizard prompts for:
@@ -413,7 +413,7 @@ Setup automatically:
 
 **bash / zsh (macOS, Linux, WSL2):**
 ```bash
-echo 'alias junto="~/.junto/junto-workspace.sh"' >> ~/.bashrc
+echo 'alias junto="~/.junto/junto"' >> ~/.bashrc
 # or ~/.zshrc on macOS / zsh installs
 source ~/.bashrc
 ```
@@ -573,7 +573,7 @@ value is returned exactly once in that response. If it isn't stored immediately,
 ### `"type": "http"` required in `~/.mcp.json`
 
 Current Claude Code requires the junto MCP entry to include `"type": "http"`.
-`junto-setup.sh` writes it correctly, but if you're setting up manually:
+`junto` writes it correctly, but if you're setting up manually:
 
 ```json
 {
@@ -739,10 +739,10 @@ setting up your team — you're making it easier for every team after you.
 
 | File | Platform | Purpose |
 |---|---|---|
-| `junto-setup.sh` | Linux / macOS / WSL2 | First-time setup wizard |
-| `junto-setup.ps1` | Windows native | First-time setup wizard |
-| `junto-launch.sh` | Linux / macOS / WSL2 | Session launcher |
-| `junto-launch.ps1` | Windows native | Session launcher |
+| `junto` | Linux / macOS / WSL2 | First-time setup wizard |
+| `junto.ps1` | Windows native | First-time setup wizard |
+| `junto` | Linux / macOS / WSL2 | Session launcher |
+| `junto.ps1` | Windows native | Session launcher |
 | `junto-check.sh` | Linux / macOS / WSL2 | Health check + auto-repair |
 | `junto-update.sh` | Linux / macOS / WSL2 | Pull latest launcher updates |
 | `templates/render.sh` | Linux / macOS / WSL2 | Render system prompt template |

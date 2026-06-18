@@ -57,7 +57,7 @@ If `{{cwd}}/.claude/settings.local.json` does not exist, create it:
 
 Tell the user exactly this (substituting their values):
 
-> Workspace configured as `{their_agent_name}@{their_project_name}`. Run `junto-workspace.sh` again (or `junto-workspace.ps1` on Windows) to start your full session.
+> Workspace configured as `{their_agent_name}@{their_project_name}`. Run `junto` again (or `junto.ps1` on Windows) to start your full session.
 
 **Step 6 — Park and end**
 

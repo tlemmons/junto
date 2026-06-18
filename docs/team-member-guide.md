@@ -14,16 +14,38 @@ Think of it less like a chat tool and more like a team member who actually remem
 
 ---
 
-## What is my Claude doing at startup?
+## Setup
 
-When you run `junto` and your agent starts, it calls several memory tools before responding to you. This is normal. It is:
+**Step 1 — Get the scripts**
 
-- Checking in with the shared memory server (`memory_start_session`)
-- Loading its state from the last session — what it was working on, what it learned
-- Reading any messages from other agents
-- Pulling the team's guidelines and context
+```bash
+git clone https://github.com/tlemmons/junto ~/.junto
+```
 
-This takes a few seconds. Wait for your agent to finish before typing anything.
+**Step 2 — Add junto to your PATH**
+
+So you can type `junto` from any directory without specifying the full path.
+
+*Linux / macOS / WSL2 — add to `~/.bashrc` or `~/.zshrc`:*
+```bash
+export PATH="$HOME/.junto:$PATH"
+```
+Then reload: `source ~/.bashrc` (or open a new terminal).
+
+*Windows — add to your PowerShell profile (`$PROFILE`):*
+```powershell
+Set-Alias junto "$HOME\.junto\junto.ps1"
+```
+Or add `%USERPROFILE%\.junto` to your Windows System PATH.
+
+**Step 3 — Run it**
+
+```bash
+cd ~/your-project-directory
+junto
+```
+
+First run on a new machine: junto will ask for your API key and server URL, then walk you through the rest of the setup. First run in a new directory: a setup assistant will ask your agent name and which project you're working on. After that, `junto` just launches.
 
 ---
 
@@ -75,23 +97,19 @@ Always run `junto` from your project directory, never plain `claude`.
 A healthy startup looks like this in your terminal:
 
 ```
-junto: launching juntoYourName@yourproject → http://spg-junto-central:8080/mcp
+junto: launching YourName@yourproject → http://spg-junto-central:8080/mcp
 junto: push plugin enabled
 ```
 
-And your agent's first response includes a line like:
+And your agent's first response includes a briefing with current task, backlog, and messages.
 
-```
-[junto] juntoYourName@yourproject
-```
-
-If you don't see these, something in the setup isn't right — check that Tailscale is connected and your `junto` alias points to `~/.junto/junto-workspace.sh`.
+If you don't see these, check that Tailscale is connected and that `junto` is in your PATH.
 
 ---
 
 ## Day-to-day usage
 
-```
+```bash
 cd ~/your-project-directory
 junto
 ```
@@ -112,11 +130,11 @@ That's it. The rest of the system handles itself.
 Your identity comes from the `CLAUDE.md` in whatever directory you launch from. Different directories can have different project names:
 
 ```
-cd ~/code/ProjectA   →   junto  →   launches as juntoYourName@projecta
-cd ~/code/ProjectB   →   junto  →   launches as juntoYourName@projectb
+cd ~/code/ProjectA   →   junto   →   launches as YourName@projecta
+cd ~/code/ProjectB   →   junto   →   launches as YourName@projectb
 ```
 
-Each project directory needs its own `CLAUDE.md` with the project name. Your agent carries its identity with it; the project context changes based on where you launched.
+Each project directory needs its own `CLAUDE.md` with the project name. If a directory has no `CLAUDE.md`, `junto` will run a setup assistant to create one. Your agent carries its identity with it; the project context changes based on where you launched.
 
 ---
 
