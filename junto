@@ -34,9 +34,11 @@ TEMPLATES="${JUNTO_DIR}/templates"
 # ── Parse flags ───────────────────────────────────────────────────────────────
 
 PLUGIN=true
+FORCE_SETUP=false
 CLAUDE_ARGS=()
 for arg in "$@"; do
     if [[ "$arg" == "--no-plugin" ]]; then PLUGIN=false
+    elif [[ "$arg" == "--setup" ]]; then FORCE_SETUP=true
     else CLAUDE_ARGS+=("$arg")
     fi
 done
@@ -294,10 +296,17 @@ _ws_find_claude_md
 _ws_read_local_files
 _ws_read_claude_md
 
+# --setup flag forces identity wizard regardless of existing identity.
+# Use when identity is stale/wrong and the user needs a fresh start.
+if [[ "$FORCE_SETUP" == "true" ]]; then
+    JUNTO_AGENT=""
+    JUNTO_PROJECT=""
+fi
+
 SETUP_MODE=false
 if [[ -z "${JUNTO_AGENT:-}" || -z "${JUNTO_PROJECT:-}" ]]; then
     if [[ -t 0 && -t 1 ]]; then
-        # No identity found — launch CC as a setup assistant.
+        # No identity found (or --setup forced) — launch CC as a setup assistant.
         # CC will call memory_list_projects, ask the user for identity, write the
         # files, and instruct a restart. The user runs junto again
         # and the second launch proceeds normally with the written identity.
