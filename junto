@@ -472,6 +472,127 @@ _ctx="${JUNTO_AGENT}@${JUNTO_PROJECT}"
 echo "junto: launching ${_ctx} → ${JUNTO_MEMORY_URL}" >&2
 [[ "$PLUGIN" == "true" ]] && echo "junto: push plugin enabled" >&2
 
+# Phase 3b: Materialize scope-matched active skills to .claude/skills/ before CC starts.
+# The server exports SKILL.md payloads; we write them here so CC's native matcher
+# fires mid-turn. Junto-managed files are identified by the provenance footer comment
+# and pruned when no longer in the export. Hand-authored SKILL.md files are never touched.
+# Best-effort: failures are logged but never block launch.
+if [[ "$SETUP_MODE" == "false" ]]; then
+    python3 - \
+        "$JUNTO_MEMORY_URL" \
+        "${JUNTO_API_KEY:-}" \
+        "$JUNTO_PROJECT" \
+        "$JUNTO_AGENT" \
+        "$(pwd)" \
+        "$(pwd)/.claude/skills" << 'SKILLS_EOF'
+import sys, json, os, pathlib, urllib.request, urllib.error
+
+url, api_key, project, agent, cwd, skills_dir = sys.argv[1:]
+
+PROVENANCE_MARKER = "<!-- junto skill "
+
+def mcp_call(session_url, mcp_sid, tool, args):
+    body = json.dumps({"jsonrpc":"2.0","id":1,"method":"tools/call",
+                       "params":{"name":tool,"arguments":args}}).encode()
+    headers = {"Content-Type":"application/json","Accept":"application/json, text/event-stream",
+               "Mcp-Session-Id":mcp_sid}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    req = urllib.request.Request(session_url, data=body, headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=15) as r:
+        raw = r.read().decode()
+    lines = [l[6:] for l in raw.splitlines() if l.startswith("data: ")]
+    for line in reversed(lines):
+        try:
+            return json.loads(line)
+        except Exception:
+            continue
+    return None
+
+def tool_text(resp):
+    content = (resp or {}).get("result",{}).get("content",[{}])
+    text = content[0].get("text","") if content else ""
+    return json.loads(text) if text.strip() else {}
+
+try:
+    # 1. Open MCP session
+    init_body = json.dumps({"jsonrpc":"2.0","id":0,"method":"initialize",
+        "params":{"protocolVersion":"2024-11-05","capabilities":{},
+                  "clientInfo":{"name":"junto-launcher","version":"1.0"}}}).encode()
+    hdrs = {"Content-Type":"application/json","Accept":"application/json, text/event-stream"}
+    if api_key:
+        hdrs["Authorization"] = f"Bearer {api_key}"
+    req = urllib.request.Request(url, data=init_body, headers=hdrs, method="POST")
+    with urllib.request.urlopen(req, timeout=10) as r:
+        mcp_sid = r.headers.get("Mcp-Session-Id","")
+        r.read()
+    if not mcp_sid:
+        raise RuntimeError("no session id from server")
+
+    # 2. Start a minimal junto session (no session_id arg — this creates it)
+    sess_data = tool_text(mcp_call(url, mcp_sid, "memory_start_session",
+        {"project": project, "claude_instance": f"{agent}-launcher",
+         "role_description": "launcher skill materialization"}))
+    junto_sid = sess_data.get("session_id","")
+    if not junto_sid:
+        raise RuntimeError(f"no junto session_id: {sess_data}")
+
+    # 3. Export skills
+    export_data = tool_text(mcp_call(url, mcp_sid, "memory_export_skills",
+        {"session_id": junto_sid, "project": project,
+         "role": agent, "working_directory": cwd}))
+    skills = export_data.get("skills", [])
+
+    # 4. Write SKILL.md files
+    skills_path = pathlib.Path(skills_dir)
+    written = set()
+    for skill in skills:
+        relpath = skill.get("relpath","")
+        content_text = skill.get("content","")
+        if not relpath or not content_text:
+            continue
+        dest = skills_path / relpath
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content_text, encoding="utf-8")
+        written.add(str(dest))
+
+    # 5. Prune stale junto-managed files not in this export
+    if skills_path.exists():
+        for existing in skills_path.rglob("SKILL.md"):
+            if str(existing) not in written:
+                try:
+                    if PROVENANCE_MARKER in existing.read_text(encoding="utf-8"):
+                        existing.unlink()
+                        try: existing.parent.rmdir()
+                        except OSError: pass
+                except Exception:
+                    pass
+
+    # 6. Gitignore .claude/skills/
+    gitignore = pathlib.Path(cwd) / ".gitignore"
+    entry = ".claude/skills/"
+    try:
+        current = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
+        if entry not in current.splitlines():
+            with gitignore.open("a", encoding="utf-8") as f:
+                f.write(("\n" if current and not current.endswith("\n") else "") + entry + "\n")
+    except Exception:
+        pass
+
+    # 7. End the minimal session
+    mcp_call(url, mcp_sid, "memory_end_session",
+        {"session_id": junto_sid,
+         "summary": f"launcher skill materialization: {len(written)} skills written"})
+
+    if written:
+        print(f"junto: {len(written)} skill(s) materialized to .claude/skills/", file=sys.stderr)
+
+except Exception as e:
+    # Best-effort — never block launch
+    print(f"junto: skill materialization skipped ({e})", file=sys.stderr)
+SKILLS_EOF
+fi
+
 # Auto-run 'go' on normal launches when the user hasn't passed a custom prompt.
 # This starts the startup briefing immediately without requiring the user to type anything.
 # Skipped in setup mode (the setup wizard handles its own prompting) and when the
