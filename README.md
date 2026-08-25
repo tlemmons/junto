@@ -5,6 +5,7 @@
 This repo is the umbrella for the Junto system. It hosts:
 
 - **[`docs/getting-started.md`](./docs/getting-started.md)** — new adopter? Start here. Walks from zero to "first agent talking to junto-memory" without assuming you've read any other repo.
+- **[`docs/launcher-howto.md`](./docs/launcher-howto.md)** — how to put a thin launcher in front of `claude` that sets junto identity and loads the inbox channel. A **pattern with building blocks** (identity resolution, tmux, permission mode, skill materialization), not a canonical script — different machines assemble different subsets. The `junto` script in this repo is one reference example.
 - **[`templates/`](./templates/)** — the canonical agent system-prompt template. Every junto agent injects this at launch via `claude --append-system-prompt-file`. See [`templates/README.md`](./templates/README.md) for the base + optional project overlay model.
 - **[`docs/claude-md-migration.md`](./docs/claude-md-migration.md)** — annotated before/after for thinning an existing project's `CLAUDE.md` once the template owns operational rules.
 - **[`CHANGELOG.md`](./CHANGELOG.md)** — adopter-visible changes to the umbrella, especially the template variable surface.
