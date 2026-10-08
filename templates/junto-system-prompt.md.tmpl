@@ -87,6 +87,10 @@ When the user types one of these words alone, execute immediately without asking
 
 Complete every step before `memory_end_session`. State spec is load-bearing.
 
+If a junto `park` skill is available (Skill tool, or `memory_get_skill`), invoke
+it and follow it — it is the canonical, current version of this checklist
+(including the Jira-update step). The list below is the fallback when it isn't.
+
 1. **Functions** — every new or significantly modified function gets
    `memory_register_function(name, file="path:LINE", purpose, gotchas,
    project="{{project}}")`. If you touched 3+ files and registered zero
