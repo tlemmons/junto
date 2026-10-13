@@ -14,9 +14,9 @@ For the runtime stack itself, go to **[tlemmons/junto-stack](https://github.com/
 
 ## Components
 
-- **[junto-memory](https://github.com/tlemmons/junto-memory)** — MCP server: shared state, messaging, specs, function registry, audit logs.
-- **junto-inbox** — Claude Code channel plugin for live message delivery into agent sessions. Currently distributed via the marketplace at `tlemmons-junto-inbox` (install: `/plugin install junto-inbox@tlemmons-junto-inbox`); standalone repo publish target ~2026-06.
-- **junto-control** — Human dashboard for monitoring + commanding the agent fleet (publish target TBD).
+- **[junto-memory](https://github.com/tlemmons/junto-memory)** — MCP server: shared state, messaging, specs, function registry, audit logs, local-model delegation (routine work offloaded to an Ollama model on your own hardware), and an `/admin` web UI.
+- **[junto-inbox](https://github.com/tlemmons/junto-inbox)** — Claude Code channel plugin for live message delivery into agent sessions. Install: `/plugin install junto-inbox@tlemmons-junto-inbox`.
+- **[junto-control](https://github.com/tlemmons/junto-control)** — Human dashboard for monitoring + commanding the agent fleet.
 - **[junto-stack](https://github.com/tlemmons/junto-stack)** — docker-compose bootstrap; the adopter entry point for running the server.
 
 ## Local clone naming
