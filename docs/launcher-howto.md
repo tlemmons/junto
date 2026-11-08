@@ -85,14 +85,36 @@ off. Make it opt-out (e.g. `JUNTO_NO_BYPASS=1`) so a human can reclaim prompts.
 ### Skill materialization
 
 Before starting the agent, export the project's active skills to
-`.claude/skills/` so the client's native matcher fires them mid-task:
+`.claude/skills/` so the client's native matcher fires them mid-task. Claude
+Code discovers skills at startup, so this runs before `claude` is exec'd. The
+server can't write these files itself; the launcher does, on the box where the
+agent runs. Contract: `interface:skill-materialization-v0`.
+
+Building block: **`junto-skills.py`** in this repo (Python 3, stdlib only).
+Bash launchers call it; `junto.ps1` carries a native `Sync-JuntoSkills` with the
+same rules.
 
 ```
-memory_export_skills(project, role) -> write each SKILL.md under .claude/skills/
+JUNTO_MATERIALIZE_SKILLS=1 python3 ~/.junto/junto-skills.py --project P --agent A [--cwd DIR] [--url URL]
 ```
 
-The server can't write these files itself — the launcher does, on the box where
-the agent runs. Machines that don't use skills skip this.
+- **Opt-in:** it does nothing unless `JUNTO_MATERIALIZE_SKILLS=1`. Set it in
+  `~/.junto/config` for the whole box, or in a directory's `.junto-identity`
+  for one agent.
+- **One request:** `POST <server>/export-skills`. `--url` takes the server base
+  or the `/mcp` URL, and defaults to `$JUNTO_MEMORY_URL`, then
+  `http://localhost:8080`. The key comes from `$JUNTO_API_KEY` (pass it through
+  env, not argv, so it stays out of `ps`); omit it on keyless servers.
+- **Prune only on HTTP 200.** Any error, timeout or malformed reply leaves
+  `.claude/skills/` exactly as it was. The server answers a DB outage with
+  503, never an empty 200, so an outage can't wipe your skills.
+- **Hand-authored skills are safe.** Only files carrying the
+  `<!-- junto skill ...` footer are junto-managed. A SKILL.md without it is
+  never overwritten or deleted, even if its name matches an exported skill.
+- **No `.gitignore` edits.** Each skill dir the script creates gets its own
+  `.gitignore` containing `*`, so git ignores junto's files and still sees
+  hand-authored skills beside them.
+- Files are written only when their content changed.
 
 ### Terminal title
 

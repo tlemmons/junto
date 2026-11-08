@@ -424,6 +424,87 @@ if ($env:JUNTO_COMPONENT) { $_ctx += ":$($env:JUNTO_COMPONENT)" }
 Write-Host "junto: launching $_ctx -> $($env:JUNTO_MEMORY_URL)" -ForegroundColor Cyan
 if (-not $NoPlugin) { Write-Host "junto: push plugin enabled" -ForegroundColor Cyan }
 
+# Materialize scope-matched active skills to .claude\skills\ before CC starts
+# (interface:skill-materialization-v0). Same rules as junto-skills.py: opt-in via
+# JUNTO_MATERIALIZE_SKILLS=1; prune ONLY on an HTTP 200 with a skills list; never
+# overwrite or prune a SKILL.md without the junto provenance footer; write only on
+# change. Best-effort: any failure is a warning, never a failed launch.
+function Sync-JuntoSkills {
+    $marker = '<!-- junto skill '
+    $utf8 = New-Object System.Text.UTF8Encoding $false   # no BOM
+    $base = $env:JUNTO_MEMORY_URL.TrimEnd('/')
+    if ($base.EndsWith('/mcp')) { $base = $base.Substring(0, $base.Length - 4) }
+    $headers = @{}
+    if ($env:JUNTO_API_KEY) { $headers['Authorization'] = "Bearer $($env:JUNTO_API_KEY)" }
+    $body = @{ project = $env:JUNTO_PROJECT; role = $env:JUNTO_AGENT; working_directory = $cwd } | ConvertTo-Json -Compress
+    try {
+        $resp = Invoke-WebRequest -Uri "$base/export-skills" -Method Post -Headers $headers `
+            -ContentType 'application/json' -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) `
+            -UseBasicParsing -TimeoutSec 8
+    } catch {
+        Write-Host "junto: skills: export failed ($($_.Exception.Message)); leaving .claude\skills\ untouched" -ForegroundColor Yellow
+        return
+    }
+    if ($resp.StatusCode -ne 200) {
+        Write-Host "junto: skills: server returned HTTP $($resp.StatusCode); leaving .claude\skills\ untouched" -ForegroundColor Yellow
+        return
+    }
+    $data = $resp.Content | ConvertFrom-Json
+    if ($null -eq $data -or $null -eq $data.PSObject.Properties['skills']) {
+        Write-Host "junto: skills: response has no skills list; leaving .claude\skills\ untouched" -ForegroundColor Yellow
+        return
+    }
+    $root = Join-Path $cwd '.claude\skills'
+    $wanted = @{}
+    $written = 0; $kept = 0; $pruned = 0
+    foreach ($s in @($data.skills)) {
+        $parts = ([string]$s.relpath) -split '/'
+        $content = [string]$s.content
+        if ($parts.Count -ne 2 -or $parts[1] -ne 'SKILL.md' -or $parts[0] -in @('', '.', '..') -or
+            $parts[0] -match '[\\:]' -or -not $content.Contains($marker)) {
+            Write-Host "junto: skills: skipping malformed export entry '$($s.relpath)'" -ForegroundColor Yellow
+            continue
+        }
+        $dir = Join-Path $root $parts[0]
+        $dest = Join-Path $dir 'SKILL.md'
+        $wanted[$dest.ToLowerInvariant()] = $true
+        if (Test-Path -LiteralPath $dest) {
+            $existing = [System.IO.File]::ReadAllText($dest)
+            if (-not $existing.Contains($marker)) {
+                Write-Host "junto: skills: $($parts[0]): hand-authored SKILL.md exists, not overwriting" -ForegroundColor Yellow
+                continue
+            }
+            if ($existing -ceq $content) { $kept++; continue }
+        }
+        # Only a dir created here gets the ignore-everything .gitignore.
+        $created = -not (Test-Path -LiteralPath $dir)
+        if ($created) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        [System.IO.File]::WriteAllText($dest, $content, $utf8)
+        if ($created) { [System.IO.File]::WriteAllText((Join-Path $dir '.gitignore'), "*`n", $utf8) }
+        $written++
+    }
+    if (Test-Path -LiteralPath $root) {
+        foreach ($d in Get-ChildItem -LiteralPath $root -Directory) {
+            $f = Join-Path $d.FullName 'SKILL.md'
+            if (-not (Test-Path -LiteralPath $f) -or $wanted.ContainsKey($f.ToLowerInvariant())) { continue }
+            if (-not ([System.IO.File]::ReadAllText($f)).Contains($marker)) { continue }
+            Remove-Item -LiteralPath $f -Force
+            $ig = Join-Path $d.FullName '.gitignore'
+            if ((Test-Path -LiteralPath $ig) -and ([System.IO.File]::ReadAllText($ig)).Trim() -eq '*') {
+                Remove-Item -LiteralPath $ig -Force
+            }
+            if (-not (Get-ChildItem -LiteralPath $d.FullName -Force)) { Remove-Item -LiteralPath $d.FullName -Force }
+            $pruned++
+        }
+    }
+    Write-Host "junto: skills: $($written + $kept) current ($written written, $pruned pruned) in .claude\skills\" -ForegroundColor Cyan
+}
+if (-not $SetupMode -and $env:JUNTO_MATERIALIZE_SKILLS -eq '1') {
+    try { Sync-JuntoSkills } catch {
+        Write-Host "junto: skills: skipped ($($_.Exception.Message))" -ForegroundColor Yellow
+    }
+}
+
 $allClaudeArgs = @('--append-system-prompt-file', $promptFile)
 if (-not $NoPlugin) {
     $allClaudeArgs += '--channels'

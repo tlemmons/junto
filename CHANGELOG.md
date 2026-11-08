@@ -12,7 +12,22 @@ removing or renaming one is breaking and noted under "Changed".
 
 ## Unreleased
 
+### Changed
+- **Skill materialization now uses `POST /export-skills` and is opt-in**
+  (`interface:skill-materialization-v0`). The old inline block in `junto` did an
+  MCP handshake plus a throwaway `memory_start_session` on every launch, and it
+  treated a tool error as "zero skills" and **pruned every materialized skill**.
+  The fail-loud rule exists to prevent exactly that. It now calls the shared
+  `junto-skills.py`, which prunes only on HTTP 200, never touches a SKILL.md
+  without the junto footer, and writes only on change.
+  **Off by default:** set `JUNTO_MATERIALIZE_SKILLS=1` to keep getting skills.
+  Files written by the old block stay put until the next opted-in launch
+  reconciles them. A `.claude/skills/` line the old block appended to your
+  `.gitignore` is harmless; remove it if you want hand-authored skills tracked.
+
 ### Added
+- `junto-skills.py`: standalone skill materializer (stdlib Python), shared by
+  bash launchers. `junto.ps1` gets the same logic natively (`Sync-JuntoSkills`).
 - `docs/getting-started.md` — channel-plugin section: documented the
   `--dangerously-load-development-channels` escape hatch for environments
   where policy-tier `allowedChannelPlugins` is impossible, plus the
