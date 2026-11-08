@@ -20,6 +20,10 @@ JUNTO_MEMORY_URL="http://spg-junto-central:8080/mcp"
 # JUNTO_AGENT="juntoYourName"
 # JUNTO_PROJECT="your-project"
 
+# Materialize this project's junto skills into .claude/skills/ at launch
+# (see docs/launcher-howto.md, "Skill materialization"). Off unless 1.
+# JUNTO_MATERIALIZE_SKILLS=1
+
 # One-line role description shown in the system prompt.
 JUNTO_ROLE="General work agent"
 
